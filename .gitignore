@@ -19,8 +19,10 @@ env/
 htmlcov/
 .coverage
 
-# Runtime workspace output (task files, archives)
-workspace/
+# Runtime workspace output (task files, archives — ignore contents, not the folder)
+workspace/*
+!workspace/AGENT_LOOP.md
+workspace/archive/
 output/
 *.md.bak
 
