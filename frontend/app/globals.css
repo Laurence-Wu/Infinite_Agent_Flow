@@ -9,135 +9,210 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ------------------------------------------------------------------ */
-/* Glass card                                                          */
+/* Root — Gruvbox hard dark + warm ambient gradients                   */
+/* ------------------------------------------------------------------ */
+body {
+  background-color: #1d2021;
+  background-image:
+    radial-gradient(ellipse at 15% 40%, rgba(215,153,33,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(104,157,106,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 85%, rgba(69,133,136,0.03) 0%, transparent 45%);
+}
+
+/* ------------------------------------------------------------------ */
+/* Glass card — warm dark Gruvbox bg, amber border                     */
 /* ------------------------------------------------------------------ */
 .glass-card {
-  background: rgba(30, 41, 59, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(99, 102, 241, 0.08);
+  background: rgba(60, 56, 54, 0.60);   /* bg1 with alpha */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(215, 153, 33, 0.12);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .glass-card:hover {
-  border-color: rgba(99, 102, 241, 0.18);
-  box-shadow: 0 0 24px rgba(99, 102, 241, 0.05);
+  border-color: rgba(215, 153, 33, 0.25);
+  box-shadow: 0 4px 32px rgba(215, 153, 33, 0.07);
+}
+
+/* Active variant — warm amber aura when engine is running */
+.glass-card-active {
+  background: rgba(60, 56, 54, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(250, 189, 47, 0.32);
+  box-shadow:
+    0 0 30px rgba(250, 189, 47, 0.09),
+    inset 0 1px 0 rgba(250, 189, 47, 0.07);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* ------------------------------------------------------------------ */
-/* Stat card                                                           */
+/* Stat card — prominent raised card with warm gradient sheen          */
 /* ------------------------------------------------------------------ */
 .stat-card {
-  background: rgba(30, 41, 59, 0.6);
+  background: rgba(50, 48, 47, 0.80);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(99, 102, 241, 0.10);
-  border-radius: 1rem;
-  padding: 1.1rem 1rem;
+  border: 1px solid rgba(215, 153, 33, 0.14);
+  border-radius: 1.1rem;
+  padding: 1.5rem 1.25rem 1.2rem;
   text-align: center;
-  transition: border-color 0.3s, transform 0.2s;
+  transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(145deg, rgba(215,153,33,0.05) 0%, transparent 60%);
+  pointer-events: none;
 }
 .stat-card:hover {
-  border-color: rgba(99, 102, 241, 0.22);
-  transform: translateY(-1px);
+  border-color: rgba(250, 189, 47, 0.30);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(215, 153, 33, 0.10);
 }
 
 /* ------------------------------------------------------------------ */
-/* Progress bar glow                                                   */
+/* Progress bar glow — warm amber                                      */
 /* ------------------------------------------------------------------ */
 .progress-glow {
-  box-shadow: 0 0 10px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 0 14px rgba(250, 189, 47, 0.55), 0 0 4px rgba(250, 189, 47, 0.7);
 }
 
 /* ------------------------------------------------------------------ */
-/* Scrollbar                                                           */
+/* Scrollbar — amber tint                                              */
 /* ------------------------------------------------------------------ */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.25);
+  background: rgba(215, 153, 33, 0.28);
   border-radius: 999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.45);
+  background: rgba(250, 189, 47, 0.50);
 }
 
 /* ------------------------------------------------------------------ */
-/* Log terminal                                                        */
+/* Log terminal — classic Gruvbox hard dark, retro scanlines           */
 /* ------------------------------------------------------------------ */
 .log-terminal {
-  background: #0d1117;
+  background: #1d2021;               /* Gruvbox hard dark */
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 0.7rem;
-  line-height: 1.55;
-  color: #c9d1d9;
+  line-height: 1.65;
+  color: #a89984;                    /* fg3 — subdued base */
   height: 340px;
   overflow-y: auto;
-  padding: 0.65rem 0.75rem;
+  padding: 0.75rem 1rem;
   scrollbar-width: thin;
-  scrollbar-color: rgba(99,102,241,0.25) transparent;
+  scrollbar-color: rgba(215,153,33,0.25) transparent;
+  /* Subtle scanline texture */
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.04) 2px,
+    rgba(0, 0, 0, 0.04) 4px
+  );
 }
 .log-terminal::-webkit-scrollbar { width: 4px; }
 .log-terminal::-webkit-scrollbar-thumb {
-  background: rgba(99,102,241,0.25);
+  background: rgba(215,153,33,0.25);
   border-radius: 999px;
 }
 
 /* ------------------------------------------------------------------ */
-/* Prose — rendered markdown                                           */
+/* Prose — rendered markdown in Gruvbox palette                        */
 /* ------------------------------------------------------------------ */
-.prose { color: #cbd5e1; line-height: 1.75; font-size: 0.875rem; }
+.prose { color: #bdae93; line-height: 1.75; font-size: 0.875rem; }
 
-.prose h1 { color: #f1f5f9; font-size: 1.35rem; font-weight: 700; margin: 0.5rem 0 0.6rem; }
+.prose h1 { color: #ebdbb2; font-size: 1.35rem; font-weight: 700; margin: 0.5rem 0 0.6rem; }
 .prose h2 {
-  color: #e2e8f0; font-size: 1.1rem; font-weight: 600;
+  color: #d5c4a1; font-size: 1.1rem; font-weight: 600;
   margin: 1.1rem 0 0.5rem;
-  border-bottom: 1px solid #1e293b; padding-bottom: 0.3rem;
+  border-bottom: 1px solid #3c3836; padding-bottom: 0.3rem;
 }
-.prose h3 { color: #e2e8f0; font-size: 0.95rem; font-weight: 600; margin: 0.9rem 0 0.4rem; }
+.prose h3 { color: #d5c4a1; font-size: 0.95rem; font-weight: 600; margin: 0.9rem 0 0.4rem; }
 .prose p  { margin: 0.5rem 0; }
-.prose strong { color: #f1f5f9; font-weight: 600; }
-.prose em     { color: #94a3b8; }
-.prose a      { color: #818cf8; text-decoration: underline; }
+.prose strong { color: #ebdbb2; font-weight: 600; }
+.prose em     { color: #a89984; }
+.prose a      { color: #83a598; text-decoration: underline; }
 
 .prose code {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.82em;
-  background: rgba(99,102,241,0.12);
-  color: #a5b4fc;
+  background: rgba(215, 153, 33, 0.12);
+  color: #fabd2f;
   padding: 0.1em 0.4em;
   border-radius: 4px;
-  border: 1px solid rgba(99,102,241,0.15);
+  border: 1px solid rgba(215, 153, 33, 0.20);
 }
 .prose pre {
-  background: #0d1117 !important;
-  border: 1px solid #1e293b;
+  background: #1d2021 !important;
+  border: 1px solid #3c3836;
   border-radius: 10px;
   padding: 1rem;
   overflow-x: auto;
   margin: 0.75rem 0;
 }
-.prose pre code { background: transparent !important; border: none; padding: 0; font-size: 0.8rem; }
+.prose pre code { background: transparent !important; border: none; padding: 0; font-size: 0.8rem; color: #ebdbb2; }
 
 .prose ul, .prose ol { margin: 0.4rem 0 0.4rem 1.4rem; }
 .prose ul { list-style-type: disc; }
 .prose ol { list-style-type: decimal; }
 .prose li { margin: 0.2rem 0; }
 
+.prose li input[type="checkbox"] {
+  accent-color: #d79921;
+  margin-right: 0.35rem;
+}
+
 .prose blockquote {
-  border-left: 3px solid #6366f1;
+  border-left: 3px solid #d79921;
   padding: 0.45rem 1rem;
   margin: 0.75rem 0;
-  background: rgba(99,102,241,0.06);
+  background: rgba(215, 153, 33, 0.06);
   border-radius: 0 6px 6px 0;
-  color: #94a3b8;
+  color: #a89984;
 }
-.prose blockquote strong { color: #f59e0b; }
+.prose blockquote strong { color: #fe8019; }
 
 .prose table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.82rem; }
 .prose th {
-  background: rgba(99,102,241,0.1); color: #a5b4fc;
+  background: rgba(215, 153, 33, 0.10); color: #fabd2f;
   text-align: left; padding: 0.45rem 0.75rem;
-  border-bottom: 1px solid #334155; font-weight: 600;
+  border-bottom: 1px solid #504945; font-weight: 600;
 }
-.prose td { padding: 0.4rem 0.75rem; border-bottom: 1px solid #1e293b; }
+.prose td { padding: 0.4rem 0.75rem; border-bottom: 1px solid #3c3836; }
 .prose tr:last-child td { border-bottom: none; }
-.prose hr { border: none; border-top: 1px solid #1e293b; margin: 1rem 0; }
+.prose hr { border: none; border-top: 1px solid #3c3836; margin: 1rem 0; }
+
+/* ------------------------------------------------------------------ */
+/* Card ID glow — ProgressPanel primary identifier                     */
+/* ------------------------------------------------------------------ */
+.card-id-glow {
+  text-shadow:
+    0 0 20px rgba(250, 189, 47, 0.55),
+    0 0 40px rgba(215, 153, 33, 0.25);
+}
+
+/* ------------------------------------------------------------------ */
+/* Stat number glow variants                                           */
+/* ------------------------------------------------------------------ */
+.glow-yellow { text-shadow: 0 0 18px rgba(250, 189, 47, 0.55); }
+.glow-green  { text-shadow: 0 0 18px rgba(184, 187, 38,  0.50); }
+.glow-orange { text-shadow: 0 0 18px rgba(254, 128, 25,  0.50); }
+.glow-blue   { text-shadow: 0 0 18px rgba(131, 165, 152, 0.50); }
+
+/* ------------------------------------------------------------------ */
+/* Workspace scanner dot animations                                    */
+/* ------------------------------------------------------------------ */
+@keyframes scanner-blink {
+  0%, 80%, 100% { opacity: 0.15; }
+  40%           { opacity: 1;    }
+}
+
+.animate-scanner-dot1 { animation: scanner-blink 1.4s ease-in-out infinite; }
+.animate-scanner-dot2 { animation: scanner-blink 1.4s ease-in-out 0.28s infinite; }
+.animate-scanner-dot3 { animation: scanner-blink 1.4s ease-in-out 0.56s infinite; }
