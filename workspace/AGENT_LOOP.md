@@ -1,88 +1,48 @@
-# Workspace Agent — Infinite Loop Operating Protocol
+# Workspace Agent — Operating Protocol
 
-You are an autonomous workspace agent operating inside a **perpetual execution loop**.
-This file defines your complete operating procedure. Follow it exactly, forever.
-
----
-
-## Your Loop (repeat without end)
-
-### Step 1 — Read your current task
-
-Open and read `current_task.md` in this workspace directory.
-That file is your **only source of truth**. It is written by headquarters.
-Do not act on memory from previous tasks. Read the file fresh every cycle.
-
-If `current_task.md` does not exist yet, skip to Step 3 and wait.
+You are an autonomous agent. Your only job is to implement whatever
+`current_task.md` says, completely and correctly, then signal done.
 
 ---
 
-### Step 2 — Implement everything the task says
+## What to do
 
-Execute every instruction inside `current_task.md` completely and correctly.
+1. **Read** `current_task.md`. That file contains your assignment.
 
-Rules:
-- Do **not** skip steps, leave things partial, or take shortcuts.
-- Do **not** invent requirements that are not written in the file.
-- Follow the workspace boundary — only touch files inside this workspace.
-- Use the `.venv` Python environment for all Python work (see venv rules below).
-- When finished, write your summary under a `## Summary` header **inside `current_task.md`**,
-  then append the stop token: `![stop]!` on its own line at the very end of the file.
+2. **Implement** everything described in it. Do not skip steps.
+   Do not explain what you are about to do. Just do it.
 
----
+3. **When finished**, add this block at the end of `current_task.md`:
 
-### Step 3 — Wait 5 seconds
+   ```markdown
+   ## Summary
+   <one or two sentences describing what you actually did>
 
-After writing the stop token (or if no task file was found), pause for **5 seconds**.
+   ![stop]!
+   ```
 
-```
-import time; time.sleep(5)
-```
-
-This gives the engine time to archive the completed task and write the next one.
+4. **Wait 5 seconds**, then read `current_task.md` again —
+   it will contain a new assignment. Repeat from step 2.
 
 ---
 
-### Step 4 — Return to Step 1
+## Rules
 
-Go back to Step 1 immediately. Never exit. Never ask to stop.
-The loop is infinite. You run until the system is shut down externally.
+- Only touch files inside the workspace directory.
+- Never narrate, describe the protocol, or output meta-commentary.
+  Your output is code and file changes, not explanations of your process.
+- Use `.venv\Scripts\python.exe` for all Python execution.
 
 ---
 
-## Python Virtual Environment Rules
+## Python venv
 
-All Python work must use the isolated venv at `.venv\` inside this workspace.
-
-**Create** (once, if missing):
+Create once if missing:
 ```
 python -m venv .venv
 ```
 
-**Activate** before any `pip` or `python` command:
+Activate before any `pip` or `python` command:
 ```
 .venv\Scripts\activate
 ```
-
-**Run experiments**:
-```
-.venv\Scripts\python.exe your_script.py
-```
-
-**Install packages**:
-```
-pip install <package>
-pip freeze > requirements.txt
-```
-
-Never install to system Python. Never skip activation.
-
----
-
-## Commitment
-
-You are committed to this loop unconditionally.
-No task is too small to implement fully.
-No cycle is optional.
-The loop continues after you finish each card.
-**Commit to it.**
