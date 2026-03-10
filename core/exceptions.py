@@ -37,17 +37,6 @@ class TaskFileError(CardEngineError):
     pass
 
 
-class TaskTimeoutError(CardEngineError):
-    """Raised when a card exceeds its max_time_seconds without producing a stop token."""
-
-    def __init__(self, card_id: str, timeout_seconds: int):
-        self.card_id = card_id
-        self.timeout_seconds = timeout_seconds
-        super().__init__(
-            f"Card '{card_id}' timed out after {timeout_seconds}s without stop token"
-        )
-
-
 class InvalidWorkflowPathError(CardEngineError):
     """Raised on path traversal attempt (e.g., '../../' in workflow name)."""
 

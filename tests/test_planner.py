@@ -14,33 +14,33 @@ from core.state_manager import StateManager
 
 
 class TestStopTokenDetection(unittest.TestCase):
-    """Test the forgiving stop-token regex used by the Planner."""
+    """Test the forgiving next-card token regex used by the Planner."""
 
     def setUp(self):
         self.config = EngineConfig()
         self.pattern = re.compile(self.config.stop_token_regex)
 
     def test_exact_match(self):
-        self.assertTrue(self.pattern.search("![stop]!"))
+        self.assertTrue(self.pattern.search("![next]!"))
 
     def test_capitalized(self):
-        self.assertTrue(self.pattern.search("![Stop]!"))
+        self.assertTrue(self.pattern.search("![Next]!"))
 
     def test_no_exclamation_prefix(self):
-        self.assertTrue(self.pattern.search("[stop]!"))
+        self.assertTrue(self.pattern.search("[next]!"))
 
     def test_no_exclamation_suffix(self):
-        self.assertTrue(self.pattern.search("![stop]"))
+        self.assertTrue(self.pattern.search("![next]"))
 
     def test_bare_brackets(self):
-        self.assertTrue(self.pattern.search("[Stop]"))
+        self.assertTrue(self.pattern.search("[Next]"))
 
     def test_embedded_in_text(self):
-        text = "Here is the summary.\n\n![stop]!\n"
+        text = "Here is the summary.\n\n![next]!\n"
         self.assertTrue(self.pattern.search(text))
 
     def test_no_match(self):
-        self.assertFalse(self.pattern.search("No stop token here."))
+        self.assertFalse(self.pattern.search("No next token here."))
 
 
 class TestPlannerArchival(unittest.TestCase):
@@ -50,7 +50,7 @@ class TestPlannerArchival(unittest.TestCase):
         """Summary section between ## Summary and stop token should be extracted."""
         content = (
             "# Task\n\nSome work.\n\n"
-            "## Summary\n\nThis was great work.\n\n![stop]!\n"
+            "## Summary\n\nThis was great work.\n\n![next]!\n"
         )
         match = re.search(
             r"##\s*[Ss]ummary\s*\n(.*?)(?=!\[|\Z)",

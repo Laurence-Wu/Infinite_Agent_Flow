@@ -76,7 +76,7 @@ When all deliverables for the card are complete, append to `current_task.md`:
 ## Summary
 <one or two sentences describing what was actually done>
 
-![stop]!
+![next]!
 ```
 
 ## Workspace Boundary

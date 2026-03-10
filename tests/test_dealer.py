@@ -48,7 +48,7 @@ class TestCardsDealer(unittest.TestCase):
         card = self._make_card()
         self.dealer.deal_card(card, card_index=0, total_cards=2)
         content = self.config.task_file.read_text(encoding="utf-8")
-        self.assertIn("completion marker", content)  # descriptive, not literal
+        self.assertIn("next-card marker", content)  # descriptive, not literal
 
     def test_deal_high_priority_has_step_by_step(self):
         card = self._make_card(priority="high")

@@ -41,18 +41,18 @@ class InstructionWrapper:
         return self
 
     def add_stop_token_footer(self) -> "InstructionWrapper":
-        """Append the standard stop-token instruction.
+        """Append the next-card token instruction.
         IMPORTANT: The instruction describes the token format without
         writing it literally, so the planner's regex won't false-match
         the instruction text in the dealt card."""
         self._suffixes.append(
             "\n\n---\n"
             "Read and follow the above instruction step by step. "
-            "When finished implementation, you should add the summary "
-            "and then output the completion marker: exclamation, open-bracket, "
-            "the word stop, close-bracket, exclamation (e.g. the five characters "
-            "! [ s t o p ] !) at the end of the "
-            "markdown generation, and your current task is finished."
+            "When finished, write a `## Summary` section describing what you did, "
+            "then output the next-card marker: exclamation, open-bracket, "
+            "the word next, close-bracket, exclamation (e.g. the five characters "
+            "! [ n e x t ] !) on its own line at the very end. "
+            "This signals the engine to advance to the next card."
         )
         return self
 
@@ -137,7 +137,7 @@ class InstructionWrapper:
             "Do not narrate your process, describe what you are about to do, or explain the workflow. "
             "Just do the work. "
             "When fully done, write a brief `## Summary` of what you completed, "
-            "then output the stop token on its own line. Nothing else.\n\n"
+            "then output the ![next]! marker on its own line. Nothing else.\n\n"
         )
         return self
 

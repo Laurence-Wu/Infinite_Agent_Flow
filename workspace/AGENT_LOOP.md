@@ -18,7 +18,7 @@ You are an autonomous agent. Your only job is to implement whatever
    ## Summary
    <one or two sentences describing what you actually did>
 
-   ![stop]!
+   ![next]!
    ```
 
 4. **Wait 5 seconds**, then read `current_task.md` again —

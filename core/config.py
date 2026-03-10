@@ -17,8 +17,7 @@ class EngineConfig:
         workflows_path:         Root directory containing workflow definitions.
         archive_dir:            Subdirectory name inside workspace for finished tasks.
         current_task_filename:  Name of the active task markdown file.
-        stop_token_regex:       Forgiving regex for detecting the agent's stop signal.
-        default_timeout_seconds: Max seconds to wait per card before triggering timeout.
+        stop_token_regex:       Forgiving regex for detecting the agent's next-card signal.
         flask_port:             Port for the web dashboard.
         flask_host:             Host for the web dashboard.
     """
@@ -27,8 +26,7 @@ class EngineConfig:
     workflows_path: str = "./workflows"
     archive_dir: str = "archive"
     current_task_filename: str = "current_task.md"
-    stop_token_regex: str = r"!?\[[Ss]top\]!?"
-    default_timeout_seconds: int = 100  # Hard cap: don't congest the queue
+    stop_token_regex: str = r"!?\[[Nn]ext\]!?"
     flask_port: int = 5000
     flask_host: str = "127.0.0.1"
 

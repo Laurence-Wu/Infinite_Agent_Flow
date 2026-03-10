@@ -1,11 +1,9 @@
 """
 CardsPlanner — Watchdog-based task monitor, archiver, and workflow advancer.
 
-Watches current_task.md for the stop token using OS-native file events
+Watches current_task.md for the ![next]! token using OS-native file events
 (watchdog).  On detection: extracts summary, archives the task, appends
 to master_summary.md, and advances to the next card via Picker → Dealer.
-
-Includes a per-card timeout fallback to prevent indefinite hangs.
 """
 
 from __future__ import annotations
@@ -25,7 +23,7 @@ from watchdog.events import FileModifiedEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
 from core.config import EngineConfig
-from core.exceptions import TaskFileError, TaskTimeoutError
+from core.exceptions import TaskFileError
 from core.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
@@ -82,7 +80,6 @@ class CardsPlanner:
         self._dealer = dealer
 
         self._observer: Optional[Observer] = None
-        self._timeout_timer: Optional[threading.Timer] = None
         self._stop_event = threading.Event()
         self._processing_lock = threading.Lock()  # Prevent duplicate handling
         self._ignoring_events = False              # Suppress during transitions
@@ -124,7 +121,7 @@ class CardsPlanner:
         }
 
         self._dealer.deal_card(first_card, card_index=idx, total_cards=total)
-        self._start_monitoring(first_card.max_time_seconds)
+        self._start_monitoring()
         logger.info("Workflow %s/%s started with card %s", workflow_name, version, first_card.id)
 
     def run(self, workflow_name: str, version: str) -> None:
@@ -153,33 +150,21 @@ class CardsPlanner:
     #  File monitoring
     # ------------------------------------------------------------------ #
 
-    def _start_monitoring(self, max_time_seconds: Optional[int] = None) -> None:
-        """Start the watchdog observer and optional timeout timer."""
-        # Cancel any existing timer
-        self._cancel_timeout()
-
-        # Set up watchdog — create a fresh observer each cycle
+    def _start_monitoring(self) -> None:
+        """Start the watchdog observer for the workspace directory."""
         watch_dir = str(self.config.resolved_workspace)
         handler = _TaskFileHandler(self)
 
-        # Mark old observer for stop (don't join — may be current thread)
         old_observer = self._observer
         if old_observer is not None:
             old_observer.stop()
-            # Don't join here; old observer thread will exit on its own
 
         self._observer = Observer()
         self._observer.schedule(handler, watch_dir, recursive=False)
         self._observer.daemon = True
         self._observer.start()
 
-        # Set up timeout
-        timeout = max_time_seconds or self.config.default_timeout_seconds
-        self._timeout_timer = threading.Timer(timeout, self._on_timeout)
-        self._timeout_timer.daemon = True
-        self._timeout_timer.start()
-
-        logger.debug("Monitoring started (timeout=%ds)", timeout)
+        logger.debug("Monitoring started — waiting for ![next]!")
 
     def _on_task_file_changed(self) -> None:
         """Called by the watchdog handler when current_task.md is modified.
@@ -201,8 +186,7 @@ class CardsPlanner:
             # immediately and we can safely stop/restart the observer.
             if self._processing_lock.acquire(blocking=False):
                 self._ignoring_events = True  # Suppress immediately
-                logger.info("Stop token detected in task file.")
-                self._cancel_timeout()
+                logger.info("![next]! detected — advancing workflow.")
                 t = threading.Thread(
                     target=self._handle_completion_safe,
                     args=(content,),
@@ -210,48 +194,16 @@ class CardsPlanner:
                 )
                 t.start()
 
-    def _on_timeout(self) -> None:
-        """Called when a card exceeds its time limit.
-
-        Uses the same _processing_lock as the stop-token path so that a
-        timeout firing at the same moment as a stop token does not cause
-        two concurrent reshuffles that corrupt each other's files."""
-        logger.warning(
-            "Card %s timed out after limit.",
-            self._current_card_id,
-        )
-        self._state.mark_error(
-            f"Card '{self._current_card_id}' timed out. "
-            "Check current_task.md for partial output."
-        )
-        if not self._processing_lock.acquire(blocking=False):
-            # Stop-token handler already owns the lock — let it advance.
-            logger.warning(
-                "Timeout for card %s ignored — stop-token handler already running.",
-                self._current_card_id,
-            )
-            return
-        self._ignoring_events = True
-        try:
-            content = self._dealer.read_current_task() or ""
-            self._handle_completion(content, timed_out=True)
-        except Exception as exc:
-            logger.error("Fatal error in timeout handler: %s", exc, exc_info=True)
-            self._stop_event.set()
-            raise
-        finally:
-            self._processing_lock.release()
-
     # ------------------------------------------------------------------ #
     #  Task completion & archival
     # ------------------------------------------------------------------ #
 
-    def _handle_completion_safe(self, content: str, timed_out: bool = False) -> None:
+    def _handle_completion_safe(self, content: str) -> None:
         """Thread-safe wrapper that releases the processing lock when done.
         On unhandled exception, signals the main loop to exit so the process
         does not hang indefinitely."""
         try:
-            self._handle_completion(content, timed_out)
+            self._handle_completion(content)
         except Exception as exc:
             logger.error("Fatal error in completion handler: %s", exc, exc_info=True)
             self._stop_event.set()   # unblock run() so Ctrl+C / restart works
@@ -259,9 +211,9 @@ class CardsPlanner:
         finally:
             self._processing_lock.release()
 
-    def _handle_completion(self, content: str, timed_out: bool = False) -> None:
+    def _handle_completion(self, content: str) -> None:
         """Archive the finished task and advance to the next card."""
-        summary = self._extract_summary(content, timed_out)
+        summary = self._extract_summary(content)
         self._ignoring_events = True  # Suppress events during transition
         self._archive_task(content, summary)
         self._state.mark_completed(summary)
@@ -269,15 +221,12 @@ class CardsPlanner:
         time.sleep(0.5)  # Let stale watchdog events flush
         self._ignoring_events = False
 
-    def _extract_summary(self, content: str, timed_out: bool = False) -> str:
+    def _extract_summary(self, content: str) -> str:
         """
         Extract the agent's summary from the task content.
-        Looks for text between a '## Summary' header and the stop token.
+        Looks for text between a '## Summary' header and the ![next]! token.
         Falls back to the last 5 non-empty lines if no header is found.
         """
-        if timed_out:
-            return f"[TIMEOUT] Card '{self._current_card_id}' did not complete in time."
-
         # Try to find a ## Summary section
         summary_match = re.search(
             r"##\s*[Ss]ummary\s*\n(.*?)(?=!\[|\Z)",
@@ -378,7 +327,7 @@ class CardsPlanner:
 
         self._current_card_id = next_card.id
         self._dealer.deal_card(next_card, card_index=idx, total_cards=total)
-        self._start_monitoring(next_card.max_time_seconds)
+        self._start_monitoring()
 
         logger.info("Advanced to card %s (%d/%d)", next_card.id, idx + 1, total)
 
@@ -485,14 +434,8 @@ class CardsPlanner:
     #  Cleanup
     # ------------------------------------------------------------------ #
 
-    def _cancel_timeout(self) -> None:
-        if self._timeout_timer is not None:
-            self._timeout_timer.cancel()
-            self._timeout_timer = None
-
     def _cleanup(self) -> None:
-        """Stop observer and timer."""
-        self._cancel_timeout()
+        """Stop the watchdog observer."""
         if self._observer is not None:
             self._observer.stop()
             self._observer.join(timeout=2)

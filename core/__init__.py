@@ -16,7 +16,6 @@ from .exceptions import (
     CardNotFoundError,
     InvalidWorkflowPathError,
     TaskFileError,
-    TaskTimeoutError,
     WorkflowValidationError,
 )
 from .state_manager import StateManager
@@ -37,6 +36,5 @@ __all__ = [
     "CardNotFoundError",
     "InvalidWorkflowPathError",
     "TaskFileError",
-    "TaskTimeoutError",
     "WorkflowValidationError",
 ]

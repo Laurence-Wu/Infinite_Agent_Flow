@@ -86,11 +86,6 @@ class BaseCard:
     # ---- convenience ----
 
     @property
-    def max_time_seconds(self) -> Optional[int]:
-        """Return per-card timeout from metadata, or None for default."""
-        return self.metadata.get("max_time_seconds")
-
-    @property
     def priority(self) -> str:
         return self.metadata.get("priority", "normal")
 

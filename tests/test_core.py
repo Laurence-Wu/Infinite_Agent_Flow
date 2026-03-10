@@ -62,17 +62,6 @@ class TestBaseCard(unittest.TestCase):
             with self.assertRaises(WorkflowValidationError):
                 BaseCard.from_json(Path(f.name))
 
-    def test_max_time_seconds(self):
-        card = BaseCard(
-            id="c", workflow="w", version="v",
-            instruction="Do it",
-            metadata={"max_time_seconds": 120},
-        )
-        self.assertEqual(card.max_time_seconds, 120)
-
-    def test_max_time_seconds_default(self):
-        card = BaseCard(id="c", workflow="w", version="v", instruction="Do")
-        self.assertIsNone(card.max_time_seconds)
 
 
 class TestBaseWorkflow(unittest.TestCase):
@@ -139,7 +128,7 @@ class TestInstructionWrapper(unittest.TestCase):
     def test_stop_token_footer(self):
         w = InstructionWrapper().add_stop_token_footer()
         result = w.wrap("Task here.")
-        self.assertIn("completion marker", result)  # descriptive, not literal token
+        self.assertIn("next-card marker", result)  # descriptive, not literal token
 
     def test_chaining(self):
         w = InstructionWrapper()
@@ -149,7 +138,7 @@ class TestInstructionWrapper(unittest.TestCase):
             .add_custom("Be precise.")
             .wrap("Build it."))
         self.assertIn("step by step", result)
-        self.assertIn("completion marker", result)
+        self.assertIn("next-card marker", result)
         self.assertIn("Be precise.", result)
         self.assertIn("Build it.", result)
 
@@ -237,10 +226,10 @@ class TestEngineConfig(unittest.TestCase):
         import re
         cfg = EngineConfig()
         pattern = re.compile(cfg.stop_token_regex)
-        self.assertTrue(pattern.search("![stop]!"))
-        self.assertTrue(pattern.search("![Stop]!"))
-        self.assertTrue(pattern.search("[stop]"))
-        self.assertTrue(pattern.search("[Stop]!"))
+        self.assertTrue(pattern.search("![next]!"))
+        self.assertTrue(pattern.search("![Next]!"))
+        self.assertTrue(pattern.search("[next]"))
+        self.assertTrue(pattern.search("[Next]!"))
 
 
 class TestMultiLoopWorkflow(unittest.TestCase):
