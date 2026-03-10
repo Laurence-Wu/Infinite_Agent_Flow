@@ -11,12 +11,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import signal
 import subprocess
 import sys
 import threading
+import time
+import urllib.request
 from pathlib import Path
 
 # Ensure project root is on sys.path
@@ -100,6 +103,8 @@ class AgentOrchestrator:
         self._workflow_name = workflow_name
         self._version = version
         self._frontend_proc: subprocess.Popen | None = None
+        self._ngrok_proc:    subprocess.Popen | None = None
+        self._ngrok_auth:    str | None = None  # set before run()
 
     # ------------------------------------------------------------------ #
     #  Public methods
@@ -124,12 +129,14 @@ class AgentOrchestrator:
         )
 
         self._start_frontend()
+        self._start_ngrok()
         try:
             self.planner.run(self._workflow_name, self._version)
         except KeyboardInterrupt:
             logger.info("Interrupted by user.")
             self.planner.stop()
         finally:
+            self._stop_ngrok()
             self._stop_frontend()
 
     def deal_next(self) -> None:
@@ -219,6 +226,66 @@ class AgentOrchestrator:
         finally:
             self._frontend_proc = None
 
+    def _start_ngrok(self) -> None:
+        """Start an ngrok HTTP tunnel pointing at port 3000.
+        Only runs if self._ngrok_auth is set (passed via --ngrok-auth CLI arg).
+        Fetches and logs the public URL from ngrok's local API once it is ready."""
+        if not self._ngrok_auth:
+            return
+        cmd = ["ngrok", "http", "3000", f"--basic-auth={self._ngrok_auth}"]
+        try:
+            self._ngrok_proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+                ),
+            )
+            logger.info("ngrok tunnel starting… fetching public URL.")
+            threading.Thread(target=self._log_ngrok_url, daemon=True).start()
+        except FileNotFoundError:
+            logger.warning("ngrok not found in PATH — tunnel will not start.")
+
+    def _log_ngrok_url(self) -> None:
+        """Poll ngrok's local API until the tunnel URL is available, then log it."""
+        for attempt in range(15):
+            time.sleep(1)
+            try:
+                with urllib.request.urlopen(
+                    "http://127.0.0.1:4040/api/tunnels", timeout=2
+                ) as resp:
+                    data = json.loads(resp.read())
+                    for tunnel in data.get("tunnels", []):
+                        if tunnel.get("proto") == "https":
+                            logger.info(
+                                "ngrok public URL: %s  (basic-auth protected)",
+                                tunnel["public_url"],
+                            )
+                            return
+            except Exception:
+                pass
+        logger.warning("Could not determine ngrok public URL after 15s.")
+
+    def _stop_ngrok(self) -> None:
+        """Kill the ngrok process tree."""
+        proc = self._ngrok_proc
+        if proc is None:
+            return
+        logger.info("Stopping ngrok tunnel (pid %d)…", proc.pid)
+        try:
+            if sys.platform == "win32":
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                    capture_output=True,
+                )
+            else:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except Exception as exc:
+            logger.warning("Could not stop ngrok: %s", exc)
+        finally:
+            self._ngrok_proc = None
+
 
 # ---------------------------------------------------------------------- #
 #  CLI
@@ -260,6 +327,15 @@ def main():
         default=5000,
         help="Flask dashboard port (default: 5000).",
     )
+    parser.add_argument(
+        "--ngrok-auth",
+        default=None,
+        metavar="USER:PASS",
+        help=(
+            "Start an ngrok tunnel to the Next.js frontend (port 3000) "
+            "protected by HTTP basic auth. Example: --ngrok-auth 'alice:secret'"
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -270,6 +346,7 @@ def main():
         workflows_path=args.workflows_path,
         flask_port=args.port,
     )
+    orchestrator._ngrok_auth = args.ngrok_auth
     orchestrator.run()
 
 
