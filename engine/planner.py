@@ -131,11 +131,19 @@ class CardsPlanner:
         """
         Blocking entry point: starts the workflow and waits until
         all cards are processed or stop() is called.
+
+        Uses a polling loop with a short timeout so that Ctrl+C
+        (SIGINT / KeyboardInterrupt) is reliably received on Windows.
         """
         self.start_workflow(workflow_name, version)
-        self._stop_event.wait()
-        self._cleanup()
-        logger.info("Planner run loop exited.")
+        try:
+            while not self._stop_event.is_set():
+                self._stop_event.wait(timeout=0.5)
+        except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt received — shutting down.")
+        finally:
+            self._cleanup()
+            logger.info("Planner run loop exited.")
 
     def stop(self) -> None:
         """Signal the planner to shut down gracefully."""
@@ -221,9 +229,15 @@ class CardsPlanner:
     # ------------------------------------------------------------------ #
 
     def _handle_completion_safe(self, content: str, timed_out: bool = False) -> None:
-        """Thread-safe wrapper that releases the processing lock when done."""
+        """Thread-safe wrapper that releases the processing lock when done.
+        On unhandled exception, signals the main loop to exit so the process
+        does not hang indefinitely."""
         try:
             self._handle_completion(content, timed_out)
+        except Exception as exc:
+            logger.error("Fatal error in completion handler: %s", exc, exc_info=True)
+            self._stop_event.set()   # unblock run() so Ctrl+C / restart works
+            raise
         finally:
             self._processing_lock.release()
 
