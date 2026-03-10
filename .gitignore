@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Runtime workspace output (task files, archives)
+workspace/
+output/
+*.md.bak
+
+# Private workflow definitions (contain task instructions for your projects).
+# Only sample_workflow/ is tracked as a public example; all others are private.
+workflows/*
+!workflows/sample_workflow
+workflows/sample_workflow/*
+!workflows/sample_workflow/v1
+workflows/sample_workflow/v1/*
+!workflows/sample_workflow/v1/*.json
+!workflows/sample_workflow/v1/guidance.md
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

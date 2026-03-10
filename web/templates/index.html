@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardDealer — Agent Instruction Engine</title>
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        surface: { DEFAULT: '#0f172a', light: '#1e293b', lighter: '#334155' },
+                        accent:  { DEFAULT: '#6366f1', light: '#818cf8', dim: '#4f46e5' },
+                        success: '#22c55e',
+                        warn:    '#f59e0b',
+                        danger:  '#ef4444',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- HTMX (CDN) -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-surface text-slate-200 font-sans min-h-screen">
+
+    <!-- ================================================================ -->
+    <!--  HEADER                                                          -->
+    <!-- ================================================================ -->
+    <header class="border-b border-slate-700/50 backdrop-blur-sm bg-surface/80 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center shadow-lg shadow-accent/20">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                </div>
+                <h1 class="text-xl font-semibold tracking-tight">
+                    Card<span class="text-accent-light">Dealer</span>
+                </h1>
+            </div>
+
+            {% if snapshot.current_workflow %}
+            <div class="flex items-center gap-2">
+                <span class="px-3 py-1 text-xs font-medium rounded-full
+                             bg-accent/10 text-accent-light border border-accent/20">
+                    {{ snapshot.current_workflow }} / {{ snapshot.current_version }}
+                </span>
+                <span class="relative flex h-2.5 w-2.5">
+                    {% if snapshot.status == 'running' %}
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-success"></span>
+                    {% elif snapshot.status == 'error' %}
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
+                    {% elif snapshot.status == 'workflow_finished' %}
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent"></span>
+                    {% else %}
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500"></span>
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- ================================================================ -->
+    <!--  MAIN                                                            -->
+    <!-- ================================================================ -->
+    <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+        <!-- Progress bar (auto-refreshed via HTMX) -->
+        <div hx-get="/partials/progress" hx-trigger="every 5s" hx-swap="innerHTML"
+             id="progress-panel">
+            {% with s=snapshot %}{% include '_progress.html' %}{% endwith %}
+        </div>
+
+        <!-- Two-column layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- ---- Left column: Status + Current Task ---- -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- Status panel -->
+                <div hx-get="/partials/status" hx-trigger="every 5s" hx-swap="innerHTML"
+                     id="status-panel" class="glass-card rounded-2xl p-6">
+                    {% with s=snapshot %}{% include '_status.html' %}{% endwith %}
+                </div>
+            </div>
+
+            <!-- ---- Right column: History + Workflows ---- -->
+            <div class="space-y-6">
+
+                <!-- Available workflows -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">
+                        Available Workflows
+                    </h2>
+                    {% if workflows %}
+                    <ul class="space-y-2">
+                        {% for wf in workflows %}
+                        <li class="flex items-center justify-between px-4 py-2.5 rounded-xl
+                                   bg-surface-lighter/30 hover:bg-surface-lighter/50
+                                   transition-colors duration-200 cursor-default">
+                            <span class="text-sm font-medium text-slate-300">{{ wf.name }}</span>
+                            <span class="text-xs font-mono text-accent-light bg-accent/10
+                                         px-2 py-0.5 rounded-md">{{ wf.version }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-sm text-slate-500 italic">No workflows found.</p>
+                    {% endif %}
+                </div>
+
+                <!-- History feed -->
+                <div hx-get="/partials/history" hx-trigger="every 5s" hx-swap="innerHTML"
+                     id="history-panel" class="glass-card rounded-2xl p-6">
+                    {% with s=snapshot %}{% include '_history.html' %}{% endwith %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-700/30 mt-12">
+        <div class="max-w-7xl mx-auto px-6 py-4 text-center text-xs text-slate-500">
+            CardDealer Agent Instruction Engine &middot; Dashboard auto-refreshes every 5s via HTMX
+        </div>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "id": "card_02",
+  "loop_id": "main",
+  "workflow": "sample_workflow",
+  "version": "v1",
+  "instruction": "Write a brief README.md in the workspace.\n\nThe README should include:\n- A one-sentence description of the project\n- A 'Getting Started' section with a placeholder command\n- A 'Contributing' section with one sentence\n\nSave the file as `README.md` in the workspace root.\n\n![stop]! (append this line when done)",
+  "metadata": {
+    "priority": "normal",
+    "max_time_seconds": 300,
+    "tags": ["documentation", "readme"]
+  },
+  "next_card": "card_01"
+}

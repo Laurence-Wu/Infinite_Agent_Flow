@@ -1,0 +1,23 @@
+<!-- HTMX partial: History feed -->
+<h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">
+    Completed Tasks
+</h2>
+
+{% if s.history %}
+<ul class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+    {% for item in s.history|reverse %}
+    <li class="bg-surface rounded-xl p-4 border border-slate-700/30
+              hover:border-accent/20 transition-colors duration-200">
+        <div class="flex items-center justify-between mb-2">
+            <span class="font-mono text-sm text-accent-light font-medium">{{ item.card_id }}</span>
+            <span class="text-xs text-slate-500">{{ item.completed_at[:19] }}</span>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed line-clamp-3">{{ item.summary }}</p>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="text-center py-8">
+    <p class="text-sm text-slate-500 italic">No tasks completed yet.</p>
+</div>
+{% endif %}

@@ -1,0 +1,61 @@
+/* CardDealer Dashboard — Custom Overrides */
+
+/* ---- Glassmorphism card ---- */
+.glass-card {
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.08);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.glass-card:hover {
+    border-color: rgba(99, 102, 241, 0.18);
+    box-shadow: 0 0 24px rgba(99, 102, 241, 0.06);
+}
+
+/* ---- Progress bar glow ---- */
+.progress-glow {
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+
+/* ---- Custom scrollbar ---- */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.5);
+}
+
+/* ---- Line clamp utility ---- */
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ---- Pulse animation for live indicator ---- */
+@keyframes soft-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+.animate-soft-pulse {
+    animation: soft-pulse 2s ease-in-out infinite;
+}
+
+/* ---- Smooth HTMX transitions ---- */
+.htmx-settling {
+    opacity: 1;
+    transition: opacity 0.3s ease-in;
+}
+.htmx-swapping {
+    opacity: 0.7;
+    transition: opacity 0.15s ease-out;
+}

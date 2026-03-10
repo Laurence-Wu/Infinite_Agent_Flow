@@ -1,0 +1,13 @@
+{
+  "id": "card_01",
+  "loop_id": "main",
+  "workflow": "sample_workflow",
+  "version": "v1",
+  "instruction": "Set up the project directory structure.\n\nCreate the following folders inside the workspace:\n- src/\n- tests/\n- docs/\n\nVerify each folder exists after creation.\n\n![stop]! (append this line when done)",
+  "metadata": {
+    "priority": "high",
+    "max_time_seconds": 300,
+    "tags": ["setup", "infrastructure"]
+  },
+  "next_card": "card_02"
+}

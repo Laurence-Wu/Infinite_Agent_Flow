@@ -1,0 +1,20 @@
+<!-- HTMX partial: Progress bar -->
+{% set pct = s.progress_pct|default(0) %}
+<div class="glass-card rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Progress</h2>
+        <span class="text-sm font-mono text-accent-light">{{ pct }}%</span>
+    </div>
+    <div class="w-full h-2.5 bg-surface-lighter rounded-full overflow-hidden">
+        <div class="h-full rounded-full bg-gradient-to-r from-accent-dim via-accent to-accent-light
+                    transition-all duration-700 ease-out progress-glow"
+             style="width: {{ pct }}%"></div>
+    </div>
+    <div class="flex justify-between mt-2 text-xs text-slate-500">
+        <span>{{ s.completed_total|default(s.history|length) }} tasks completed</span>
+        {% if s.cycles_completed|default(0) > 0 %}
+        <span>Cycle {{ s.cycles_completed + 1 }}</span>
+        {% endif %}
+        <span>{{ s.total_cards }} cards/cycle</span>
+    </div>
+</div>
