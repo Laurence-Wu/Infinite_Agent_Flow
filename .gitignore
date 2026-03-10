@@ -27,7 +27,7 @@ output/
 *.md.bak
 
 # Private workflow definitions (contain task instructions for your projects).
-# Only sample_workflow/ is tracked as a public example; all others are private.
+# sample_workflow/ is the public example; jobscrap_v2/ is also tracked.
 workflows/*
 !workflows/sample_workflow
 workflows/sample_workflow/*
@@ -35,6 +35,12 @@ workflows/sample_workflow/*
 workflows/sample_workflow/v1/*
 !workflows/sample_workflow/v1/*.json
 !workflows/sample_workflow/v1/guidance.md
+!workflows/jobscrap_v2
+workflows/jobscrap_v2/*
+!workflows/jobscrap_v2/v1
+workflows/jobscrap_v2/v1/*
+!workflows/jobscrap_v2/v1/*.json
+!workflows/jobscrap_v2/v1/guidance.md
 
 # IDE
 .vscode/

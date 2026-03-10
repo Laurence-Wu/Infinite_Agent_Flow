@@ -1,0 +1,12 @@
+{
+  "id": "f4_ship",
+  "loop_id": "main",
+  "workflow": "jobscrap_v2",
+  "version": "v1",
+  "next_card": "e1_audit",
+  "metadata": {
+    "priority": "high",
+    "tags": ["feature", "git", "release"]
+  },
+  "instruction": "## Ship the Feature: Commit, Push, PR, Log\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n**Steps:**\n\n1. Final cleanup pass on all changed files:\n   - Remove any debug statements or temporary comments\n   - Confirm imports are sorted: stdlib → third-party → local\n   - Confirm no unused imports\n\n2. Stage all changed files:\n   ```\n   git add <files listed in SPRINT_DECISION.md>\n   git add tests/\n   ```\n\n3. Commit with a Conventional Commit message:\n   ```\n   git commit -m \"feat(<scope>): <imperative description under 72 chars>\"\n   ```\n   Where `<scope>` is the module name (e.g., `scorer`, `filter`, `keywords`).\n\n4. Push the branch:\n   ```\n   git push -u origin HEAD\n   ```\n\n5. Open a Pull Request:\n   ```\n   gh pr create --title \"feat: <same description>\" --body \"$(cat <<EOF\n   ## What\n   <one paragraph from SPRINT_DECISION.md>\n\n   ## Acceptance Criteria\n   <paste the [x] checked list from SPRINT_DECISION.md>\n\n   ## Test Plan\n   - All existing tests pass\n   - <N> new tests added for <module>\n   EOF\n   )\"\n   ```\n\n6. Append to `EVOLUTION_LOG.md` (create if missing):\n   ```markdown\n   ## <ISO date> — <feature name>\n   - Branch: <branch name>\n   - PR: <URL from gh pr create output>\n   - What was built: <one sentence>\n   - Evidence it worked: <cite ops_log or test results>\n   ```\n\n7. Delete `SPRINT_DECISION.md` — it was ephemeral scaffolding."
+}

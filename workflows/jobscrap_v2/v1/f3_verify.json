@@ -1,0 +1,12 @@
+{
+  "id": "f3_verify",
+  "loop_id": "main",
+  "workflow": "jobscrap_v2",
+  "version": "v1",
+  "next_card": "f4_ship",
+  "metadata": {
+    "priority": "high",
+    "tags": ["feature", "testing"]
+  },
+  "instruction": "## Test and Verify the Feature\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n**Steps:**\n\n1. Activate venv and run the existing test suite first:\n   ```\n   .venv\\Scripts\\activate\n   python -m pytest tests/ -v\n   ```\n   If any pre-existing test fails, fix it before writing new tests.\n\n2. For every new or changed function, write at minimum **3 test cases** in the appropriate `tests/test_<module>.py` file:\n   - Happy path: normal valid input → expected output\n   - Edge case: boundary condition or unusual but valid input\n   - Error handling: invalid input or mocked failure → correct exception/fallback\n\n3. Mock all external calls (network requests, file I/O beyond the workspace):\n   ```python\n   from unittest.mock import patch, MagicMock\n   ```\n   Never make live scraping calls in tests.\n\n4. Run the full suite again including new tests:\n   ```\n   python -m pytest tests/ -v\n   ```\n   **100% pass rate required.** Fix any failures before continuing.\n\n5. Read SPRINT_DECISION.md acceptance criteria. For each `[ ]` criterion, verify it is now satisfied and manually change `[ ]` to `[x]`.\n\n6. If any criterion cannot be checked by the test suite (e.g., visual output), verify it manually and note the result."
+}

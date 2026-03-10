@@ -1,0 +1,12 @@
+{
+  "id": "e2_evolve",
+  "loop_id": "main",
+  "workflow": "jobscrap_v2",
+  "version": "v1",
+  "next_card": "s1_scrape",
+  "metadata": {
+    "priority": "normal",
+    "tags": ["evolution", "release"]
+  },
+  "instruction": "## Evolve the System: Backlog, Deps, Docs, Release\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n**Steps:**\n\n1. **Update EVOLUTION_BACKLOG.md** from `AUDIT_REPORT.md`:\n   - Rewrite the file with the Top 5 Recommended Improvements from the audit\n   - Format each item:\n     ```\n     ### [HIGH/MEDIUM/LOW] <improvement title>\n     **Why:** <cite evidence from AUDIT_REPORT.md>\n     **Files:** <list specific files to change>\n     **Done when:** <concrete, testable condition>\n     ```\n   - Sort: HIGH priority first\n   - Remove completed items that appear in EVOLUTION_LOG.md\n\n2. **Apply any quick wins** from the audit (only if low-risk and <20 lines of change):\n   - Fix any `print()` statements → replace with logger calls\n   - Add missing type hints on functions noted in the audit\n   - Remove dead TODO/FIXME comments\n   - Run `python -m pytest tests/ -v` after each change to verify no breakage\n\n3. **Bump outdated dependencies** (minor/patch only, no major version bumps):\n   - For each outdated package from the audit: update `requirements.txt` with the new pinned version\n   - Run `pip install -r requirements.txt` and then the test suite\n\n4. **Determine semantic version** from git log since last tag:\n   - `git describe --tags --abbrev=0` to find last tag\n   - `git log <last_tag>..HEAD --oneline` to see changes\n   - Patch bump if only ops/audit changes; minor bump if a feature was merged\n\n5. **Update README.md** — ensure these sections are current:\n   - Architecture diagram or description\n   - How to install and run\n   - Config file documentation\n   - Keyword file location and format\n\n6. **Commit, tag, push**:\n   ```\n   git add EVOLUTION_BACKLOG.md requirements.txt README.md <any fixed files>\n   git commit -m \"audit: system evolution pass vX.Y.Z\"\n   git tag -a vX.Y.Z -m \"Release vX.Y.Z: <one-line summary of cycle improvements>\"\n   git push origin main --tags\n   ```\n\n7. **Delete AUDIT_REPORT.md** — its insights have been transferred to the backlog."
+}

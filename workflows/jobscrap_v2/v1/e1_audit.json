@@ -1,0 +1,12 @@
+{
+  "id": "e1_audit",
+  "loop_id": "main",
+  "workflow": "jobscrap_v2",
+  "version": "v1",
+  "next_card": "e2_evolve",
+  "metadata": {
+    "priority": "normal",
+    "tags": ["evolution", "audit"]
+  },
+  "instruction": "## Comprehensive System Audit\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\nPerform a full audit of the scraper system's health and effectiveness. Write findings to `AUDIT_REPORT.md`.\n\n**Steps:**\n\n1. **Operational trends** — Read the last 10 entries in `ops_log.md`:\n   - Compute average S+A tier count per run\n   - Count how many runs had `Tuning needed: yes`\n   - List the 3 most-repeated issues across Analysis sections\n\n2. **Code health** — Read each of: `main_orchestrator.py`, `job_filter.py`, `relevance_scorer.py`, `fuzzy_matcher.py`, `keyword_loader.py`:\n   - Are there any functions >40 lines? Note them.\n   - Any missing type hints on public functions? Note them.\n   - Any `TODO` / `FIXME` / `print()` left in the code? Note them.\n\n3. **Dependency status** — Run:\n   ```\n   .venv\\Scripts\\activate\n   pip list --outdated\n   pip-audit 2>&1 || echo \"pip-audit not installed\"\n   ```\n   Note any outdated packages or known vulnerabilities.\n\n4. **Test coverage** — Run:\n   ```\n   python -m pytest tests/ -v --tb=short\n   ```\n   Note pass rate and any skipped tests.\n\n5. **Evolution history** — Read `EVOLUTION_LOG.md` (if exists) and list features built in the last 5 cycles.\n\n6. Write `AUDIT_REPORT.md` with sections: Operational Metrics, Code Health, Dependencies, Test Status, Evolution History, and **Top 5 Recommended Improvements** ranked by impact."
+}
