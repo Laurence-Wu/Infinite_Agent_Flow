@@ -1,12 +1,15 @@
 {
-  "id": "f2_implement",
+  "id": "raspberry",
   "loop_id": "main",
   "workflow": "jobscrap_v2",
   "version": "v1",
-  "next_card": "f3_verify",
+  "next_card": "starfruit",
   "metadata": {
     "priority": "high",
-    "tags": ["feature", "code"]
+    "tags": [
+      "feature",
+      "code"
+    ]
   },
   "instruction": "## Implement the Chosen Feature\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n**Steps:**\n\n1. Read `SPRINT_DECISION.md`. Confirm it exists and has all required sections.\n\n2. Create and switch to the feature branch:\n   ```\n   git checkout main\n   git pull origin main\n   git checkout -b <branch name from SPRINT_DECISION.md>\n   ```\n\n3. Implement every change listed in `Files to Change`. Code standards:\n   - Full type hints on all new functions\n   - One-line docstring on every new public function/class\n   - No `print()` — use `logger_setup` for any output\n   - No hardcoded paths, credentials, or magic numbers — use `config_loader.py` or named constants\n   - Functions must be ≤ 40 lines; extract helpers if needed\n   - No dead code or commented-out blocks\n\n4. All acceptance criteria from SPRINT_DECISION.md must be satisfied by the end of this card.\n\n5. Self-review before finishing:\n   - Does each changed file still have sorted imports (stdlib → third-party → local)?\n   - Is the diff minimal and focused — no unrelated changes snuck in?\n   - Are all new constants named (no magic numbers)?"
 }

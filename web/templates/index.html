@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CardDealer — Agent Instruction Engine</title>
+    <title>Infinite Agent Flow — Dashboard</title>
 
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -28,8 +28,18 @@
         }
     </script>
 
-    <!-- HTMX (CDN) -->
+    <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+
+    <!-- marked.js — markdown renderer -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
+
+    <!-- DOMPurify — XSS sanitiser -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+
+    <!-- highlight.js — code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,110 +50,278 @@
 </head>
 <body class="bg-surface text-slate-200 font-sans min-h-screen">
 
-    <!-- ================================================================ -->
-    <!--  HEADER                                                          -->
-    <!-- ================================================================ -->
-    <header class="border-b border-slate-700/50 backdrop-blur-sm bg-surface/80 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center shadow-lg shadow-accent/20">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                    </svg>
-                </div>
-                <h1 class="text-xl font-semibold tracking-tight">
-                    Card<span class="text-accent-light">Dealer</span>
-                </h1>
+<!-- ================================================================ -->
+<!--  HEADER                                                          -->
+<!-- ================================================================ -->
+<header class="border-b border-slate-700/50 backdrop-blur-sm bg-surface/80 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center shadow-lg shadow-accent/20">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
             </div>
+            <div>
+                <h1 class="text-base font-semibold tracking-tight leading-none">
+                    Infinite<span class="text-accent-light">Agent</span>Flow
+                </h1>
+                <p class="text-xs text-slate-500 leading-none mt-0.5">Autonomous Task Engine</p>
+            </div>
+        </div>
 
+        <div class="flex items-center gap-3">
             {% if snapshot.current_workflow %}
-            <div class="flex items-center gap-2">
-                <span class="px-3 py-1 text-xs font-medium rounded-full
-                             bg-accent/10 text-accent-light border border-accent/20">
-                    {{ snapshot.current_workflow }} / {{ snapshot.current_version }}
-                </span>
+            <span class="px-2.5 py-1 text-xs font-mono rounded-full
+                         bg-accent/10 text-accent-light border border-accent/20">
+                {{ snapshot.current_workflow }}/{{ snapshot.current_version }}
+            </span>
+            {% endif %}
+
+            <!-- Live status dot -->
+            <div class="flex items-center gap-1.5">
+                {% if snapshot.status == 'running' %}
                 <span class="relative flex h-2.5 w-2.5">
-                    {% if snapshot.status == 'running' %}
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-success"></span>
-                    {% elif snapshot.status == 'error' %}
-                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
-                    {% elif snapshot.status == 'workflow_finished' %}
-                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent"></span>
-                    {% else %}
-                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500"></span>
-                    {% endif %}
                 </span>
+                <span class="text-xs text-success font-medium">Running</span>
+                {% elif snapshot.status == 'error' %}
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
+                </span>
+                <span class="text-xs text-danger font-medium">Error</span>
+                {% elif snapshot.status == 'workflow_finished' %}
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent"></span>
+                </span>
+                <span class="text-xs text-accent-light font-medium">Finished</span>
+                {% else %}
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500"></span>
+                </span>
+                <span class="text-xs text-slate-400 font-medium">Idle</span>
+                {% endif %}
             </div>
+        </div>
+    </div>
+</header>
+
+<!-- ================================================================ -->
+<!--  MAIN                                                            -->
+<!-- ================================================================ -->
+<main class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+
+    <!-- ── Stats Row ── -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="stat-card">
+            <div class="text-2xl font-bold text-accent-light" id="stat-cycles">{{ snapshot.cycles_completed }}</div>
+            <div class="text-xs text-slate-400 uppercase tracking-wide mt-1">Cycles</div>
+        </div>
+        <div class="stat-card">
+            <div class="text-2xl font-bold text-success" id="stat-done">{{ snapshot.completed_total }}</div>
+            <div class="text-xs text-slate-400 uppercase tracking-wide mt-1">Cards Done</div>
+        </div>
+        <div class="stat-card">
+            <div class="text-2xl font-bold text-warn" id="stat-rate">—</div>
+            <div class="text-xs text-slate-400 uppercase tracking-wide mt-1">Cards / hr</div>
+        </div>
+        <div class="stat-card">
+            <div class="text-2xl font-bold text-slate-200" id="stat-uptime">—</div>
+            <div class="text-xs text-slate-400 uppercase tracking-wide mt-1">Uptime</div>
+        </div>
+    </div>
+
+    <!-- ── Progress + Status (HTMX) ── -->
+    <div hx-get="/partials/progress" hx-trigger="every 4s" hx-swap="innerHTML" id="progress-panel">
+        {% with s=snapshot %}{% include '_progress.html' %}{% endwith %}
+    </div>
+
+    <!-- ── Main two-column grid ── -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left 2/3: Current Task (rendered markdown, JS-powered) -->
+        <div class="lg:col-span-2">
+            <div class="glass-card rounded-2xl overflow-hidden">
+                <!-- Panel header -->
+                <div class="flex items-center justify-between px-5 py-3 border-b border-slate-700/40">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-accent-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Current Task</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500 font-mono" id="task-refresh-label">live</span>
+                        <div class="w-1.5 h-1.5 rounded-full bg-accent animate-soft-pulse"></div>
+                    </div>
+                </div>
+                <!-- Rendered markdown content -->
+                <div id="task-content"
+                     class="prose p-6 max-h-[560px] overflow-y-auto custom-scrollbar">
+                    <p class="text-slate-500 italic text-sm">Loading task…</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right 1/3: Log Terminal (HTMX) -->
+        <div class="lg:col-span-1 flex flex-col gap-6">
+            <div class="glass-card rounded-2xl overflow-hidden flex flex-col">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-slate-700/40">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Live Log</span>
+                    </div>
+                    <span class="text-xs font-mono text-slate-600">{{ snapshot.log_lines|length }} lines</span>
+                </div>
+                <div id="log-terminal"
+                     class="log-terminal flex-1"
+                     hx-get="/partials/logs"
+                     hx-trigger="every 2s"
+                     hx-swap="innerHTML"
+                     hx-on:htmx:after-swap="this.scrollTop = this.scrollHeight">
+                    {% for line in snapshot.log_lines %}
+                    <div class="log-line {% if '[ERROR]' in line %}log-error{% elif '[WARNING]' in line %}log-warn{% else %}log-info{% endif %}">{{ line }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Lower two-column grid ── -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Workflows (static) -->
+        <div class="glass-card rounded-2xl p-5">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">
+                Available Workflows
+            </h2>
+            {% if workflows %}
+            <ul class="space-y-2">
+                {% for wf in workflows %}
+                <li class="flex items-center justify-between px-4 py-2.5 rounded-xl
+                           bg-surface-lighter/30 hover:bg-surface-lighter/50
+                           transition-colors duration-200 cursor-default">
+                    <div>
+                        <span class="text-sm font-medium text-slate-300 block">{{ wf.name }}</span>
+                        <span class="text-xs text-slate-500">{{ wf.card_count }} cards</span>
+                    </div>
+                    <span class="text-xs font-mono text-accent-light bg-accent/10
+                                 px-2 py-0.5 rounded-md">{{ wf.version }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-slate-500 italic">No workflows found.</p>
             {% endif %}
         </div>
-    </header>
 
-    <!-- ================================================================ -->
-    <!--  MAIN                                                            -->
-    <!-- ================================================================ -->
-    <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
-
-        <!-- Progress bar (auto-refreshed via HTMX) -->
-        <div hx-get="/partials/progress" hx-trigger="every 5s" hx-swap="innerHTML"
-             id="progress-panel">
-            {% with s=snapshot %}{% include '_progress.html' %}{% endwith %}
+        <!-- History feed (HTMX) -->
+        <div class="lg:col-span-2 glass-card rounded-2xl p-5"
+             hx-get="/partials/history"
+             hx-trigger="every 5s"
+             hx-swap="innerHTML"
+             id="history-panel">
+            {% with s=snapshot %}{% include '_history.html' %}{% endwith %}
         </div>
+    </div>
+</main>
 
-        <!-- Two-column layout -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<footer class="border-t border-slate-700/30 mt-8">
+    <div class="max-w-7xl mx-auto px-6 py-3 text-center text-xs text-slate-600">
+        Infinite Agent Flow &middot; Dashboard refreshes via HTMX &middot; Task renders via marked.js
+    </div>
+</footer>
 
-            <!-- ---- Left column: Status + Current Task ---- -->
-            <div class="lg:col-span-2 space-y-6">
+<!-- ================================================================ -->
+<!--  JS: uptime counter + rate + rendered markdown                   -->
+<!-- ================================================================ -->
+<script>
+    // ---- Engine start time (injected by server) ----
+    const ENGINE_START_EPOCH = {{ snapshot.engine_start_epoch | default(0) }};
+    let completedTotal = {{ snapshot.completed_total | default(0) }};
 
-                <!-- Status panel -->
-                <div hx-get="/partials/status" hx-trigger="every 5s" hx-swap="innerHTML"
-                     id="status-panel" class="glass-card rounded-2xl p-6">
-                    {% with s=snapshot %}{% include '_status.html' %}{% endwith %}
-                </div>
-            </div>
+    function formatUptime(secs) {
+        secs = Math.floor(secs);
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        const s = secs % 60;
+        if (h > 0) return h + 'h ' + String(m).padStart(2,'0') + 'm';
+        if (m > 0) return m + 'm ' + String(s).padStart(2,'0') + 's';
+        return s + 's';
+    }
 
-            <!-- ---- Right column: History + Workflows ---- -->
-            <div class="space-y-6">
+    function updateUptimeStats() {
+        if (!ENGINE_START_EPOCH) return;
+        const secs = (Date.now() / 1000) - ENGINE_START_EPOCH;
+        document.getElementById('stat-uptime').textContent = formatUptime(secs);
+        // Cards / hr
+        if (secs > 60 && completedTotal > 0) {
+            const rate = (completedTotal / (secs / 3600)).toFixed(1);
+            document.getElementById('stat-rate').textContent = rate;
+        }
+    }
+    setInterval(updateUptimeStats, 1000);
+    updateUptimeStats();
 
-                <!-- Available workflows -->
-                <div class="glass-card rounded-2xl p-6">
-                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">
-                        Available Workflows
-                    </h2>
-                    {% if workflows %}
-                    <ul class="space-y-2">
-                        {% for wf in workflows %}
-                        <li class="flex items-center justify-between px-4 py-2.5 rounded-xl
-                                   bg-surface-lighter/30 hover:bg-surface-lighter/50
-                                   transition-colors duration-200 cursor-default">
-                            <span class="text-sm font-medium text-slate-300">{{ wf.name }}</span>
-                            <span class="text-xs font-mono text-accent-light bg-accent/10
-                                         px-2 py-0.5 rounded-md">{{ wf.version }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                    <p class="text-sm text-slate-500 italic">No workflows found.</p>
-                    {% endif %}
-                </div>
+    // ---- Sync stat counters when HTMX refreshes progress panel ----
+    document.body.addEventListener('htmx:afterSwap', function(e) {
+        // Auto-scroll log terminal
+        if (e.detail.target.id === 'log-terminal') {
+            e.detail.target.scrollTop = e.detail.target.scrollHeight;
+        }
+        // Sync live stats from progress partial data attributes
+        const pp = document.getElementById('progress-panel');
+        if (pp && e.detail.target.id === 'progress-panel') {
+            const done = pp.dataset.completedTotal;
+            const cycles = pp.dataset.cyclesCompleted;
+            if (done !== undefined) {
+                completedTotal = parseInt(done, 10);
+                document.getElementById('stat-done').textContent = done;
+            }
+            if (cycles !== undefined) {
+                document.getElementById('stat-cycles').textContent = cycles;
+            }
+        }
+    });
 
-                <!-- History feed -->
-                <div hx-get="/partials/history" hx-trigger="every 5s" hx-swap="innerHTML"
-                     id="history-panel" class="glass-card rounded-2xl p-6">
-                    {% with s=snapshot %}{% include '_history.html' %}{% endwith %}
-                </div>
-            </div>
-        </div>
-    </main>
+    // ---- marked.js config ----
+    marked.setOptions({
+        breaks: true,
+        gfm: true,
+    });
 
-    <!-- Footer -->
-    <footer class="border-t border-slate-700/30 mt-12">
-        <div class="max-w-7xl mx-auto px-6 py-4 text-center text-xs text-slate-500">
-            CardDealer Agent Instruction Engine &middot; Dashboard auto-refreshes every 5s via HTMX
-        </div>
-    </footer>
+    // ---- Render current_task.md ----
+    async function refreshTask() {
+        try {
+            const res = await fetch('/api/current-task');
+            const container = document.getElementById('task-content');
+            if (!res.ok) {
+                container.innerHTML = '<p class="text-slate-500 italic text-sm">No active task.</p>';
+                return;
+            }
+            const md = await res.text();
+            const raw = marked.parse(md);
+            const clean = DOMPurify.sanitize(raw);
+            container.innerHTML = clean;
+            // Apply syntax highlighting to all code blocks
+            container.querySelectorAll('pre code').forEach(el => {
+                hljs.highlightElement(el);
+            });
+        } catch (e) { /* network hiccup — ignore */ }
+    }
+
+    refreshTask();
+    setInterval(refreshTask, 3000);
+
+    // Initial log scroll
+    const logEl = document.getElementById('log-terminal');
+    if (logEl) logEl.scrollTop = logEl.scrollHeight;
+</script>
 
 </body>
 </html>

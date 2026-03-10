@@ -1,12 +1,15 @@
 {
-  "id": "s4_commit",
+  "id": "papaya",
   "loop_id": "main",
   "workflow": "jobscrap_v2",
   "version": "v1",
-  "next_card": "f1_discover",
+  "next_card": "quince",
   "metadata": {
     "priority": "normal",
-    "tags": ["ops", "git"]
+    "tags": [
+      "ops",
+      "git"
+    ]
   },
   "instruction": "## Commit All Ops Changes to Main\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n**Steps:**\n\n1. Verify you are on `main` branch:\n   ```\n   git branch --show-current\n   ```\n\n2. Run the full test suite one final time:\n   ```\n   .venv\\Scripts\\activate\n   python -m pytest tests/ -v\n   ```\n   If any test fails, fix it before continuing.\n\n3. Stage only ops artifacts (never stage config.json which contains credentials):\n   ```\n   git add ops_log.md seen_jobs_orchestrator.json\n   git add keywords/\n   git add relevance_scorer.py job_filter.py\n   ```\n   Only add files that actually changed (`git status` first).\n\n4. Commit with today's date:\n   ```\n   git commit -m \"ops: daily run and tuning $(date +%Y-%m-%d)\"\n   ```\n\n5. Push to remote:\n   ```\n   git push origin main\n   ```\n\n6. Verify the commit appears at HEAD:\n   ```\n   git log --oneline -3\n   ```"
 }

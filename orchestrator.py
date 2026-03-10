@@ -35,6 +35,24 @@ logging.basicConfig(
 logger = logging.getLogger("orchestrator")
 
 
+class _StateLogHandler(logging.Handler):
+    """Captures log records into the StateManager's ring buffer for the dashboard."""
+
+    def __init__(self, state: "StateManager"):
+        super().__init__()
+        self._state = state
+        self.setFormatter(logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%H:%M:%S",
+        ))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            self._state.push_log(self.format(record))
+        except Exception:
+            pass
+
+
 class AgentOrchestrator:
     """
     Public API for the Card Dealer engine.
@@ -62,6 +80,10 @@ class AgentOrchestrator:
 
         # ---- Shared state ----
         self.state = StateManager()
+
+        # ---- Log capture → dashboard ring buffer ----
+        _log_handler = _StateLogHandler(self.state)
+        logging.getLogger().addHandler(_log_handler)
 
         # ---- Engine components ----
         self.picker = CardsPicker(self.config)

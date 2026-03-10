@@ -102,4 +102,14 @@ def create_app(
         snapshot = state.get_snapshot()
         return render_template("_history.html", s=snapshot)
 
+    @app.route("/partials/logs")
+    def partial_logs():
+        snapshot = state.get_snapshot()
+        return render_template("_logs.html", s=snapshot)
+
+    @app.route("/api/logs")
+    def api_logs():
+        snapshot = state.get_snapshot()
+        return jsonify({"logs": snapshot.get("log_lines", [])})
+
     return app

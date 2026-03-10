@@ -1,12 +1,15 @@
 {
-  "id": "s1_scrape",
+  "id": "date",
   "loop_id": "main",
   "workflow": "jobscrap_v2",
   "version": "v1",
-  "next_card": "s2_analyze",
+  "next_card": "kiwi",
   "metadata": {
     "priority": "normal",
-    "tags": ["ops", "scrape"]
+    "tags": [
+      "ops",
+      "scrape"
+    ]
   },
   "instruction": "## Execute Job Scraper and Record Metrics\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n**Steps:**\n\n1. Open a terminal, activate the venv, and ensure you are on the `main` branch with latest code:\n   ```\n   cd C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room\n   .venv\\Scripts\\activate\n   git checkout main\n   git pull origin main\n   ```\n\n2. Run the scraper:\n   ```\n   python main_orchestrator.py\n   ```\n   Capture the full terminal output.\n\n3. Open `job_war_room.log` and check for any ERROR or WARNING lines from this run.\n\n4. Append a new entry to `ops_log.md` (create if missing) with this exact structure:\n   ```\n   ## Run: <ISO datetime>\n   - Total scraped: <N>\n   - Passed filters: <N>\n   - S tier: <N> | A tier: <N> | B tier: <N> | C tier: <N>\n   - Alerts sent: <N>\n   - Errors/warnings: <list any, or \"none\">\n   - seen_jobs size: <line count of seen_jobs_orchestrator.json>\n   ```\n\n5. If the scraper raised an exception that prevented completion, note it under `Errors/warnings` and proceed anyway — the analysis card will handle it."
 }

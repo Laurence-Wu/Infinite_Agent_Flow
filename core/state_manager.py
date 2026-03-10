@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -24,11 +25,13 @@ class TaskSnapshot:
     current_loop_id: str = "main"
     card_index: int = 0
     total_cards: int = 0
-    status: str = "idle"            # idle | running | completed | error | timeout
+    status: str = "idle"            # idle | running | completed | error
     started_at: Optional[str] = None
     last_updated: Optional[str] = None
     history: List[Dict[str, Any]] = field(default_factory=list)
     error: Optional[str] = None
+    log_lines: List[str] = field(default_factory=list)
+    engine_start_epoch: Optional[float] = None
 
 
 class StateManager:
@@ -42,6 +45,7 @@ class StateManager:
     def __init__(self):
         self._lock = threading.Lock()
         self._state = TaskSnapshot()
+        self._state.engine_start_epoch = time.time()
 
     # ------------------------------------------------------------------ #
     #  Read (Flask side)
@@ -69,6 +73,9 @@ class StateManager:
                 "last_updated": self._state.last_updated,
                 "history": copy.deepcopy(self._state.history),
                 "error": self._state.error,
+                "log_lines": list(self._state.log_lines[-150:]),
+                "engine_start_epoch": self._state.engine_start_epoch,
+                "uptime_seconds": self._uptime_seconds(),
             }
 
     # ------------------------------------------------------------------ #
@@ -99,6 +106,13 @@ class StateManager:
             self._state.last_updated = self._state.started_at
             self._state.error = None
 
+    def push_log(self, line: str) -> None:
+        """Append a log line to the ring buffer (max 300 lines)."""
+        with self._lock:
+            self._state.log_lines.append(line)
+            if len(self._state.log_lines) > 300:
+                del self._state.log_lines[:-300]
+
     def mark_completed(self, summary: str) -> None:
         """Archive the current card into history and reset active state."""
         with self._lock:
@@ -107,6 +121,7 @@ class StateManager:
                 "card_id": self._state.current_card_id,
                 "workflow": self._state.current_workflow,
                 "version": self._state.current_version,
+                "loop_id": self._state.current_loop_id,
                 "summary": summary,
                 "completed_at": now,
             })
@@ -137,6 +152,11 @@ class StateManager:
     # ------------------------------------------------------------------ #
     #  Internal helpers
     # ------------------------------------------------------------------ #
+
+    def _uptime_seconds(self) -> float:
+        if self._state.engine_start_epoch is None:
+            return 0.0
+        return time.time() - self._state.engine_start_epoch
 
     def _progress_pct(self) -> float:
         """Calculate progress as position within the current cycle (0-100%).

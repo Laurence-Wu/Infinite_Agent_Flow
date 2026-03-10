@@ -1,18 +1,28 @@
 <!-- HTMX partial: History feed -->
-<h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">
+<h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">
     Completed Tasks
+    {% if s.history %}
+    <span class="ml-2 text-slate-600 font-mono normal-case">{{ s.history | length }}</span>
+    {% endif %}
 </h2>
 
 {% if s.history %}
-<ul class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-    {% for item in s.history|reverse %}
-    <li class="bg-surface rounded-xl p-4 border border-slate-700/30
+<ul class="space-y-2 max-h-80 overflow-y-auto custom-scrollbar pr-1">
+    {% for item in s.history | reverse %}
+    <li class="bg-surface rounded-xl p-3 border border-slate-700/30
               hover:border-accent/20 transition-colors duration-200">
-        <div class="flex items-center justify-between mb-2">
-            <span class="font-mono text-sm text-accent-light font-medium">{{ item.card_id }}</span>
-            <span class="text-xs text-slate-500">{{ item.completed_at[:19] }}</span>
+        <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center gap-2">
+                <span class="font-mono text-sm text-accent-light font-medium">{{ item.card_id }}</span>
+                {% if item.loop_id and item.loop_id != 'main' %}
+                <span class="text-xs px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                    {{ item.loop_id }}
+                </span>
+                {% endif %}
+            </div>
+            <span class="text-xs text-slate-500 font-mono">{{ item.completed_at[11:19] }}</span>
         </div>
-        <p class="text-xs text-slate-400 leading-relaxed line-clamp-3">{{ item.summary }}</p>
+        <p class="text-xs text-slate-400 leading-relaxed line-clamp-2">{{ item.summary }}</p>
     </li>
     {% endfor %}
 </ul>

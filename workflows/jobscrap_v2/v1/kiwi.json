@@ -1,12 +1,15 @@
 {
-  "id": "s2_analyze",
+  "id": "kiwi",
   "loop_id": "main",
   "workflow": "jobscrap_v2",
   "version": "v1",
-  "next_card": "s3_tune",
+  "next_card": "nectarine",
   "metadata": {
     "priority": "normal",
-    "tags": ["ops", "analysis"]
+    "tags": [
+      "ops",
+      "analysis"
+    ]
   },
   "instruction": "## Analyze Scraper Results for Quality Issues\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n**Steps:**\n\n1. Read the most recent entry in `ops_log.md`.\n\n2. Read the last 20 lines of `job_war_room.log`.\n\n3. Open `seen_jobs_orchestrator.json` and inspect 5 recent entries — verify URLs look valid and not duplicated.\n\n4. If S or A tier jobs were found, inspect their raw data by re-running with debug output or checking the log. Spot-check 3 high-scoring jobs:\n   - Does the job title match the score? (false positive if not hardware/ML)\n   - Does the job actually allow CPT/OPT? (visa score accuracy)\n   - Is the company correctly identified as Big Tech or culture-signal?\n\n5. Append a `### Analysis` subsection to the latest `ops_log.md` entry with:\n   ```\n   ### Analysis\n   - False positives observed: <list specific cases or \"none\">\n   - False negatives suspected: <list or \"none\">\n   - Keyword gaps: <keywords that should match but don't, or \"none\">\n   - Threshold issues: <scoring feels too high/low for any category, or \"none\">\n   - Recurring error pattern: <if any error appeared before, note it>\n   - Tuning needed: yes/no\n   ```\n\n6. If `Tuning needed: no`, write that explicitly so the next card can skip cleanly."
 }

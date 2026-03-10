@@ -1,4 +1,4 @@
-/* CardDealer Dashboard — Custom Overrides */
+/* CardDealer Dashboard — Custom Styles */
 
 /* ---- Glassmorphism card ---- */
 .glass-card {
@@ -9,53 +9,158 @@
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .glass-card:hover {
-    border-color: rgba(99, 102, 241, 0.18);
-    box-shadow: 0 0 24px rgba(99, 102, 241, 0.06);
+    border-color: rgba(99, 102, 241, 0.16);
+    box-shadow: 0 0 24px rgba(99, 102, 241, 0.05);
+}
+
+/* ---- Stat card ---- */
+.stat-card {
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.10);
+    border-radius: 16px;
+    padding: 1.1rem 1rem;
+    text-align: center;
+    transition: border-color 0.3s ease, transform 0.2s ease;
+}
+.stat-card:hover {
+    border-color: rgba(99, 102, 241, 0.22);
+    transform: translateY(-1px);
 }
 
 /* ---- Progress bar glow ---- */
 .progress-glow {
-    box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.35);
 }
 
 /* ---- Custom scrollbar ---- */
-.custom-scrollbar::-webkit-scrollbar {
-    width: 5px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.3);
+    background: rgba(99, 102, 241, 0.25);
     border-radius: 999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.45);
 }
 
-/* ---- Line clamp utility ---- */
-.line-clamp-3 {
+/* ---- Line clamp ---- */
+.line-clamp-2 {
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-/* ---- Pulse animation for live indicator ---- */
+/* ---- Soft pulse animation ---- */
 @keyframes soft-pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    50%       { opacity: 0.4; }
 }
-.animate-soft-pulse {
-    animation: soft-pulse 2s ease-in-out infinite;
-}
+.animate-soft-pulse { animation: soft-pulse 2s ease-in-out infinite; }
 
 /* ---- Smooth HTMX transitions ---- */
-.htmx-settling {
-    opacity: 1;
-    transition: opacity 0.3s ease-in;
+.htmx-settling  { opacity: 1;   transition: opacity 0.3s ease-in; }
+.htmx-swapping  { opacity: 0.6; transition: opacity 0.15s ease-out; }
+
+/* ================================================================== */
+/*  LOG TERMINAL                                                       */
+/* ================================================================== */
+.log-terminal {
+    background: #0d1117;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.7rem;
+    line-height: 1.55;
+    color: #c9d1d9;
+    height: 340px;
+    overflow-y: auto;
+    padding: 0.65rem 0.75rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99,102,241,0.25) transparent;
 }
-.htmx-swapping {
-    opacity: 0.7;
-    transition: opacity 0.15s ease-out;
+.log-terminal::-webkit-scrollbar { width: 4px; }
+.log-terminal::-webkit-scrollbar-track { background: transparent; }
+.log-terminal::-webkit-scrollbar-thumb {
+    background: rgba(99,102,241,0.25);
+    border-radius: 999px;
 }
+.log-line   { white-space: pre-wrap; word-break: break-all; padding: 0.05rem 0; }
+.log-info   { color: #4ade80; }
+.log-warn   { color: #fbbf24; }
+.log-error  { color: #f87171; }
+.log-debug  { color: #64748b; }
+
+/* ================================================================== */
+/*  PROSE — rendered markdown                                          */
+/* ================================================================== */
+.prose { color: #cbd5e1; line-height: 1.75; font-size: 0.875rem; }
+
+.prose h1 { color: #f1f5f9; font-size: 1.35rem; font-weight: 700; margin: 0.5rem 0 0.6rem; }
+.prose h2 {
+    color: #e2e8f0; font-size: 1.1rem; font-weight: 600;
+    margin: 1.1rem 0 0.5rem;
+    border-bottom: 1px solid #1e293b; padding-bottom: 0.3rem;
+}
+.prose h3 { color: #e2e8f0; font-size: 0.95rem; font-weight: 600; margin: 0.9rem 0 0.4rem; }
+
+.prose p { margin: 0.5rem 0; }
+
+.prose strong { color: #f1f5f9; font-weight: 600; }
+.prose em     { color: #94a3b8; }
+.prose a      { color: #818cf8; text-decoration: underline; }
+
+.prose code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82em;
+    background: rgba(99,102,241,0.12);
+    color: #a5b4fc;
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    border: 1px solid rgba(99,102,241,0.15);
+}
+
+.prose pre {
+    background: #0d1117 !important;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+}
+.prose pre code {
+    background: transparent !important;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font-size: 0.8rem;
+}
+
+.prose ul, .prose ol { margin: 0.4rem 0 0.4rem 1.4rem; }
+.prose ul { list-style-type: disc; }
+.prose ol { list-style-type: decimal; }
+.prose li { margin: 0.2rem 0; }
+
+.prose blockquote {
+    border-left: 3px solid #6366f1;
+    padding: 0.45rem 1rem;
+    margin: 0.75rem 0;
+    background: rgba(99,102,241,0.06);
+    border-radius: 0 6px 6px 0;
+    color: #94a3b8;
+}
+.prose blockquote strong { color: #f59e0b; }
+
+.prose table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.82rem; }
+.prose th {
+    background: rgba(99,102,241,0.1);
+    color: #a5b4fc;
+    text-align: left;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid #334155;
+    font-weight: 600;
+}
+.prose td { padding: 0.4rem 0.75rem; border-bottom: 1px solid #1e293b; }
+.prose tr:last-child td { border-bottom: none; }
+
+.prose hr { border: none; border-top: 1px solid #1e293b; margin: 1rem 0; }

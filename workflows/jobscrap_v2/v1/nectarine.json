@@ -1,12 +1,15 @@
 {
-  "id": "s3_tune",
+  "id": "nectarine",
   "loop_id": "main",
   "workflow": "jobscrap_v2",
   "version": "v1",
-  "next_card": "s4_commit",
+  "next_card": "papaya",
   "metadata": {
     "priority": "normal",
-    "tags": ["ops", "tuning"]
+    "tags": [
+      "ops",
+      "tuning"
+    ]
   },
   "instruction": "## Tune Keywords and Scoring Based on Analysis\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n**Steps:**\n\n1. Read the `### Analysis` section of the latest `ops_log.md` entry.\n\n2. **If `Tuning needed: no`** — skip to step 6.\n\n3. **If `Tuning needed: yes`**:\n   a. Identify the latest keyword file: `keywords/v<N>_keywords.json`\n   b. For each keyword gap noted: add the keyword to the correct category (hardware, ml, edge_ml, or job_titles)\n   c. For each false positive: consider adding a blacklist keyword to `config.json` under `blacklist_keywords`\n   d. If >5 keywords were added/removed: create `keywords/v<N+1>_keywords.json` as a copy with changes applied\n   e. If scoring weights need adjustment: edit the `WEIGHTS` dict in `relevance_scorer.py` (hw, ml, title, culture, visa must sum to 1.0)\n   f. If a filter rule needs tightening/loosening: edit `job_filter.py` with precise, minimal changes\n\n4. After any change, run the test suite:\n   ```\n   .venv\\Scripts\\activate\n   python -m pytest tests/ -v\n   ```\n   All tests must pass before continuing.\n\n5. Update `ops_log.md` latest entry with a `### Tuning` subsection listing exactly what changed.\n\n6. If nothing was tuned, append `### Tuning\\n- No changes made this cycle.` to the latest ops_log entry."
 }
