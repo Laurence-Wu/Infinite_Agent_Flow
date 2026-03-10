@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import signal
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -96,6 +99,7 @@ class AgentOrchestrator:
         # ---- Workflow identity ----
         self._workflow_name = workflow_name
         self._version = version
+        self._frontend_proc: subprocess.Popen | None = None
 
     # ------------------------------------------------------------------ #
     #  Public methods
@@ -119,11 +123,14 @@ class AgentOrchestrator:
             self.config.resolved_workspace,
         )
 
+        self._start_frontend()
         try:
             self.planner.run(self._workflow_name, self._version)
         except KeyboardInterrupt:
             logger.info("Interrupted by user.")
             self.planner.stop()
+        finally:
+            self._stop_frontend()
 
     def deal_next(self) -> None:
         """Manually advance one card (useful for interactive/debug mode)."""
@@ -166,6 +173,51 @@ class AgentOrchestrator:
             name="flask-dashboard",
         )
         thread.start()
+
+    def _start_frontend(self) -> None:
+        """Start the Next.js dev server as a subprocess (non-blocking)."""
+        frontend_dir = PROJECT_ROOT / "frontend"
+        if not (frontend_dir / "package.json").exists():
+            return
+        if not (frontend_dir / "node_modules").exists():
+            logger.warning(
+                "frontend/node_modules not found — run 'cd frontend && npm install' first. "
+                "Skipping Next.js startup."
+            )
+            return
+
+        npm = "npm.cmd" if sys.platform == "win32" else "npm"
+        try:
+            self._frontend_proc = subprocess.Popen(
+                [npm, "run", "dev"],
+                cwd=str(frontend_dir),
+                # New process group so we can kill the whole tree cleanly
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+                ),
+            )
+            logger.info("Next.js frontend started at http://localhost:3000")
+        except FileNotFoundError:
+            logger.warning("npm not found — Next.js frontend will not start.")
+
+    def _stop_frontend(self) -> None:
+        """Kill the Next.js process tree."""
+        proc = self._frontend_proc
+        if proc is None:
+            return
+        logger.info("Stopping Next.js frontend (pid %d)…", proc.pid)
+        try:
+            if sys.platform == "win32":
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                    capture_output=True,
+                )
+            else:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except Exception as exc:
+            logger.warning("Could not stop frontend process: %s", exc)
+        finally:
+            self._frontend_proc = None
 
 
 # ---------------------------------------------------------------------- #
