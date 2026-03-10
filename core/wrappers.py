@@ -41,18 +41,21 @@ class InstructionWrapper:
         return self
 
     def add_stop_token_footer(self) -> "InstructionWrapper":
-        """Append the next-card token instruction.
-        IMPORTANT: The instruction describes the token format without
-        writing it literally, so the planner's regex won't false-match
-        the instruction text in the dealt card."""
+        """Append the completion reminder footer.
+        Reinforces the write-to-disk requirement and the structured Summary format.
+        IMPORTANT: The token is described in words so the planner regex won't
+        false-match this instruction text inside the dealt card."""
         self._suffixes.append(
             "\n\n---\n"
-            "Read and follow the above instruction step by step. "
-            "When finished, write a `## Summary` section describing what you did, "
-            "then output the next-card marker: exclamation, open-bracket, "
-            "the word next, close-bracket, exclamation (e.g. the five characters "
-            "! [ n e x t ] !) on its own line at the very end. "
-            "This signals the engine to advance to the next card."
+            "**COMPLETION CHECKLIST** — before you finish:\n\n"
+            "1. All task steps above are fully implemented.\n"
+            "2. Open `current_task.md` with your file-edit tool and append:\n"
+            "   - `## Summary` with bullet points:\n"
+            "     - Files changed, commands run, test results, git commit hash, notes.\n"
+            "   - Then the next-card marker on its own line:\n"
+            "     exclamation + open-bracket + the word **next** + close-bracket + exclamation\n"
+            "     (the seven characters  ! [ n e x t ] !  with no spaces — written into the file).\n"
+            "3. Do **not** write the marker in chat — it must land in the file on disk.\n"
         )
         return self
 
@@ -128,16 +131,42 @@ class InstructionWrapper:
         return self
 
     def add_infinite_loop_directive(self) -> "InstructionWrapper":
-        """Inject the task-execution focus directive.
-        Tells the agent to focus entirely on completing the current task —
-        no meta-commentary, no narrating the process, just implement and signal done."""
+        """Inject the full agent operating protocol as a prominent banner.
+        Self-contained: every card carries the complete loop instructions,
+        process-recording rules, and the write-to-disk warning."""
         self._prefixes.insert(0,
-            "**TASK EXECUTION RULES**: "
-            "Read the task below carefully and implement everything it describes. "
-            "Do not narrate your process, describe what you are about to do, or explain the workflow. "
-            "Just do the work. "
-            "When fully done, write a brief `## Summary` of what you completed, "
-            "then output the ![next]! marker on its own line. Nothing else.\n\n"
+            "```\n"
+            "╔══════════════════════════════════════════════════════════════╗\n"
+            "║              AGENT OPERATING PROTOCOL                       ║\n"
+            "╚══════════════════════════════════════════════════════════════╝\n"
+            "```\n\n"
+            "You are an autonomous coding agent inside a continuous task engine.\n"
+            "Follow this protocol on every card — no exceptions:\n\n"
+            "**STEP 1 — READ**\n"
+            "Read the entire task below. Understand the full scope before acting.\n\n"
+            "**STEP 2 — IMPLEMENT**\n"
+            "Implement everything the task describes. No skipping. No partial work.\n"
+            "Do not narrate your process or explain what you are about to do. Just do it.\n\n"
+            "**STEP 3 — RECORD  ⚠️ WRITE INTO THE FILE ON DISK**\n"
+            "When done, open `current_task.md` with your file-edit tool and **append**\n"
+            "this exact block at the end of the file:\n\n"
+            "```markdown\n"
+            "## Summary\n"
+            "- **Files changed**: <every file created or modified>\n"
+            "- **Commands run**: <every shell command executed>\n"
+            "- **Tests**: <pass/fail counts, or 'n/a'>\n"
+            "- **Git**: <commit hash, or 'no commit'>\n"
+            "- **Notes**: <anything critical for the next agent to know>\n\n"
+            "![next]!\n"
+            "```\n\n"
+            "> ⚠️ **WARNING**: This block MUST be physically written into `current_task.md`\n"
+            "> on disk using your file-edit tool.\n"
+            "> Do **NOT** output it in chat — chat output is invisible to the engine.\n"
+            "> The engine watches the file. If `![next]!` is not in the file, the loop stalls.\n\n"
+            "**STEP 4 — WAIT**\n"
+            "Wait 5 seconds after saving. The engine will replace `current_task.md`\n"
+            "with the next task automatically. Then repeat from Step 1.\n\n"
+            "---\n\n"
         )
         return self
 
