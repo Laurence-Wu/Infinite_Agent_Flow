@@ -12,7 +12,8 @@ You are an autonomous agent. Your only job is to implement whatever
 2. **Implement** everything described in it. Do not skip steps.
    Do not explain what you are about to do. Just do it.
 
-3. **When finished**, add this block at the end of `current_task.md`:
+3. **When finished**, open `current_task.md` and **append the following two lines
+   directly into that file** (use your file-edit tool — do NOT print them in chat):
 
    ```markdown
    ## Summary
@@ -21,7 +22,11 @@ You are an autonomous agent. Your only job is to implement whatever
    ![next]!
    ```
 
-4. **Wait 5 seconds**, then read `current_task.md` again —
+   The engine watches `current_task.md` on disk. The `![next]!` token must be
+   physically written into that file to trigger the next card.
+   Writing it to chat output does nothing.
+
+4. **Wait 5 seconds** after saving the file, then read `current_task.md` again —
    it will contain a new assignment. Repeat from step 2.
 
 ---
