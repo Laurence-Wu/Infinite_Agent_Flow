@@ -1,0 +1,16 @@
+{
+  "id": "lemon",
+  "loop_id": "main",
+  "workflow": "jobscrap_v2",
+  "version": "v1",
+  "next_card": "nectarine",
+  "metadata": {
+    "priority": "normal",
+    "tags": [
+      "ops",
+      "scrape",
+      "company"
+    ]
+  },
+  "instruction": "## s3 · Company Career Page Scrape\n\nBoard scraper location: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room\\rabiuk-job-scraper`\nWorkspace            : `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n### Goal\nRun the company career-page monitor to catch direct postings that never\nappear on job boards. Target companies: Google, Amazon, Apple, NVIDIA, Tesla,\nMeta, Microsoft, Waymo, Cruise, Anthropic, OpenAI, Qualcomm, Texas Instruments,\nBroadcom, Marvell, DJI, ByteDance, TikTok, Pony.ai, Plus.ai, NIO, Xpeng.\n\n### Run Company Scraper\n```\ncd C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room\\rabiuk-job-scraper\npython company_scraper/company_script.py --once\n```\nIf no `--once` flag: run for one polling cycle, then Ctrl+C.\n\n### Manual Career Page Check (supplement)\nFor companies not in `companies.csv`, manually visit their careers pages\nand note any relevant Hardware / ML / Embedded intern roles:\n```\n# Companies to check manually if not in csv:\n# - careers.anthropic.com\n# - openai.com/careers\n# - jobs.nvidia.com\n# - jobs.qualcomm.com\n# - ti.com/careers\n# - careers.waymo.com\n```\nFor each relevant role found manually, add to `manually_added_jobs.json`:\n```python\nimport json, pathlib, datetime\nman_file = pathlib.Path(r'C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room') / 'manually_added_jobs.json'\\njobs = json.loads(man_file.read_text()) if man_file.exists() else []\njobs.append({\n    'title': 'TITLE',\n    'company': 'COMPANY',\n    'url': 'https://...',\n    'location': 'LOCATION',\n    'description': 'PASTE FULL JD HERE',\n    'source': 'manual',\n    'added_at': datetime.datetime.now().isoformat()\n})\nman_file.write_text(json.dumps(jobs, indent=2))\n```\n\n### Expand companies.csv (if needed)\nIf `company_scraper/companies.csv` has fewer than 20 companies:\nOpen the file and add the missing companies from the target list above.\nFormat: `CompanyName,careersPageURL,Country`\n\n### Log the Results\nAppend to ops_log.md:\n```markdown\n### Company Scrape\n- Companies monitored       : <N>\n- New roles found (scraped) : <N>\n- New roles found (manual)  : <N>  (see manually_added_jobs.json)\n- Errors: <list or 'none'>\n```\n"
+}

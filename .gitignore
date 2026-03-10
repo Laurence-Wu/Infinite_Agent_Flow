@@ -49,6 +49,13 @@ workflows/jobscrap_v2/v1/*
 # Claude Code local settings
 .claude/
 
+# Launch scripts (may contain credentials — never commit these)
+run_orchestrator.ps1
+run_orchestrator.sh
+run_orchestrator.bat
+*.local.ps1
+*.local.sh
+
 # OS
 .DS_Store
 Thumbs.db

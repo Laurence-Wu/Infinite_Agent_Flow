@@ -3,13 +3,13 @@
   "loop_id": "main",
   "workflow": "jobscrap_v2",
   "version": "v1",
-  "next_card": "kiwi",
+  "next_card": "elderberry",
   "metadata": {
     "priority": "normal",
     "tags": [
-      "ops",
-      "scrape"
+      "feature",
+      "test"
     ]
   },
-  "instruction": "## Execute Job Scraper and Record Metrics\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n**Steps:**\n\n1. Open a terminal, activate the venv, and ensure you are on the `main` branch with latest code:\n   ```\n   cd C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room\n   .venv\\Scripts\\activate\n   git checkout main\n   git pull origin main\n   ```\n\n2. Run the scraper:\n   ```\n   python main_orchestrator.py\n   ```\n   Capture the full terminal output.\n\n3. Open `job_war_room.log` and check for any ERROR or WARNING lines from this run.\n\n4. Append a new entry to `ops_log.md` (create if missing) with this exact structure:\n   ```\n   ## Run: <ISO datetime>\n   - Total scraped: <N>\n   - Passed filters: <N>\n   - S tier: <N> | A tier: <N> | B tier: <N> | C tier: <N>\n   - Alerts sent: <N>\n   - Errors/warnings: <list any, or \"none\">\n   - seen_jobs size: <line count of seen_jobs_orchestrator.json>\n   ```\n\n5. If the scraper raised an exception that prevented completion, note it under `Errors/warnings` and proceed anyway — the analysis card will handle it."
+  "instruction": "## f3 · Test and Verify the Sprint Feature\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n### Goal\nWrite comprehensive tests, achieve 100% pass, tick every acceptance criterion.\nDo not advance to f4 until all criteria are verified.\n\n### Step 1 — Confirm You Are on the Feature Branch\n```\ncd C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room\n.venv\\Scripts\\activate\ngit branch --show-current\n```\n\n### Step 2 — Extract Acceptance Criteria\nRead `SPRINT_DECISION.md` — list every `- [ ]` criterion.\nThese are your pass/fail conditions.\n\n### Step 3 — Write Tests (minimum 3 per changed function)\n  - **Happy path**: valid input → correct output\n  - **Edge case**: empty input, zero results, boundary values\n  - **Error path**: invalid input raises the correct exception\n  - All external calls (scraper, email, file I/O) must be mocked with `unittest.mock`\n  - Tests go in `tests/test_<module_name>.py`\n\n### Step 4 — Integration Test (if sprint touched >1 module)\nPlace in `tests/test_integration.py`:\n  - Mock the JobSpy scraper but let filters and scorer run real logic\n  - Assert a known-good job DataFrame produces correct tier assignment\n  - Assert the new feature integrates correctly end-to-end\n\n### Step 5 — Run Full Suite\n```\n.venv\\Scripts\\python.exe -m pytest tests/ -v --tb=long\n```\n100% pass required. Fix any failure before proceeding.\n\n### Step 6 — Tick Off Criteria in SPRINT_DECISION.md\nFor each verified criterion: change `- [ ]` → `- [x]`\n\n### Step 7 — Hard Stop if Any Criterion Unchecked\nIf ANY criterion remains `[ ]`: fix the gap, re-run, repeat.\nDo NOT advance to f4 with unmet criteria.\n\n### Step 8 — Append Verification Summary\nAppend to `SPRINT_DECISION.md`:\n```markdown\n## Verification\n- Tests added     : <N>\n- Total suite     : <N> passed / 0 failed\n- All criteria    : OK\n- Verified by card: f3 (date)\n```\n"
 }

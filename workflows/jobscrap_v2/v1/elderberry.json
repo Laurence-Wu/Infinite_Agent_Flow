@@ -1,0 +1,15 @@
+{
+  "id": "elderberry",
+  "loop_id": "main",
+  "workflow": "jobscrap_v2",
+  "version": "v1",
+  "next_card": "mango",
+  "metadata": {
+    "priority": "normal",
+    "tags": [
+      "feature",
+      "ship"
+    ]
+  },
+  "instruction": "## f4 · Ship the Feature to Main\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n### Goal\nMerge the verified feature branch to main, update EVOLUTION_LOG, tag the release,\nand clean up sprint artifacts.\n\n### Step 1 — Verify Ready to Ship\nRead `SPRINT_DECISION.md` — confirm `## Verification` is present and\nALL criteria are `[x]`. If not: return to f3.\n\n### Step 2 — Merge to Main\n```\ncd C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room\n.venv\\Scripts\\activate\ngit checkout main && git pull origin main\ngit merge --no-ff <feature-branch> -m \"feat(<scope>): <description>\"\n```\n\n### Step 3 — Final Test on Main\n```\n.venv\\Scripts\\python.exe -m pytest tests/ -v\n```\nIf any regression: `git revert HEAD`, fix on the branch, retry.\n\n### Step 4 — Push Main\n```\ngit push origin main\n```\n\n### Step 5 — Update EVOLUTION_LOG.md\nAppend:\n```markdown\n## <version> — <date>\n**Feature**: <title from SPRINT_DECISION>\n**Branch**: <branch name>\n**Summary**: <2-3 sentences: what was built and why it matters>\n**Tests added**: <N>\n**Commit**: <git hash>\n```\n\n### Step 6 — Clean Up Sprint Artifacts\n```\ndel SPRINT_DECISION.md\ngit add -u\ngit commit -m \"chore: close sprint — <feature title>\"\ngit push origin main\n```\n\n### Step 7 — Tag the Release\n```\n# Get current version: git describe --tags --abbrev=0\n# Bump: patch for ops/audit-only, minor for any new capability\ngit tag v<new-version>\ngit push origin --tags\n```\n"
+}
