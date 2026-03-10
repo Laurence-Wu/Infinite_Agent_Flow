@@ -211,7 +211,11 @@ class CardsPlanner:
                 t.start()
 
     def _on_timeout(self) -> None:
-        """Called when a card exceeds its time limit."""
+        """Called when a card exceeds its time limit.
+
+        Uses the same _processing_lock as the stop-token path so that a
+        timeout firing at the same moment as a stop token does not cause
+        two concurrent reshuffles that corrupt each other's files."""
         logger.warning(
             "Card %s timed out after limit.",
             self._current_card_id,
@@ -220,9 +224,23 @@ class CardsPlanner:
             f"Card '{self._current_card_id}' timed out. "
             "Check current_task.md for partial output."
         )
-        # Try to advance anyway (treat as completed with error summary)
-        content = self._dealer.read_current_task() or ""
-        self._handle_completion(content, timed_out=True)
+        if not self._processing_lock.acquire(blocking=False):
+            # Stop-token handler already owns the lock — let it advance.
+            logger.warning(
+                "Timeout for card %s ignored — stop-token handler already running.",
+                self._current_card_id,
+            )
+            return
+        self._ignoring_events = True
+        try:
+            content = self._dealer.read_current_task() or ""
+            self._handle_completion(content, timed_out=True)
+        except Exception as exc:
+            logger.error("Fatal error in timeout handler: %s", exc, exc_info=True)
+            self._stop_event.set()
+            raise
+        finally:
+            self._processing_lock.release()
 
     # ------------------------------------------------------------------ #
     #  Task completion & archival
