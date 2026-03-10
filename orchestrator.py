@@ -31,6 +31,7 @@ from core.state_manager import StateManager
 from engine.dealer import CardsDealer
 from engine.picker import CardsPicker
 from engine.planner import CardsPlanner
+from engine.scanner import WorkspaceScanner
 from web.app import create_app
 
 logging.basicConfig(
@@ -92,12 +93,13 @@ class AgentOrchestrator:
         logging.getLogger().addHandler(_log_handler)
 
         # ---- Engine components ----
-        self.picker = CardsPicker(self.config)
-        self.dealer = CardsDealer(self.config, self.state)
+        self.picker  = CardsPicker(self.config)
+        self.dealer  = CardsDealer(self.config, self.state)
         self.planner = CardsPlanner(self.config, self.state, self.picker, self.dealer)
+        self.scanner = WorkspaceScanner(self.config)
 
         # ---- Web dashboard ----
-        self.app = create_app(self.config, self.state, self.picker)
+        self.app = create_app(self.config, self.state, self.picker, self.scanner)
 
         # ---- Workflow identity ----
         self._workflow_name = workflow_name

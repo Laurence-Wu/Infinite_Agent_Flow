@@ -2,13 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { Terminal } from 'lucide-react'
-
-function lineClass(line: string): string {
-  if (line.includes('[ERROR]'))   return 'text-red-400'
-  if (line.includes('[WARNING]')) return 'text-yellow-400'
-  if (line.includes('[INFO]'))    return 'text-green-400'
-  return 'text-slate-500'
-}
+import { lineClass } from '@/lib/formatters'
 
 export default function LogTerminal({ lines }: { lines: string[] }) {
   const ref = useRef<HTMLDivElement>(null)

@@ -1,29 +1,23 @@
 'use client'
 
-import useSWR from 'swr'
-import type { Snapshot, Workflow } from '@/lib/types'
-import Header from '@/components/Header'
-import StatsRow from '@/components/StatsRow'
+import { useSnapshot }      from '@/lib/hooks/useSnapshot'
+import { useTaskMarkdown }  from '@/lib/hooks/useTaskMarkdown'
+import { useWorkflows }     from '@/lib/hooks/useWorkflows'
+import { useWorkspaceScan } from '@/lib/hooks/useWorkspaceScan'
+import Header        from '@/components/Header'
+import StatsRow      from '@/components/StatsRow'
 import ProgressPanel from '@/components/ProgressPanel'
-import TaskPreview from '@/components/TaskPreview'
-import LogTerminal from '@/components/LogTerminal'
-import HistoryFeed from '@/components/HistoryFeed'
-import WorkflowList from '@/components/WorkflowList'
-
-const jsonFetcher = (url: string) => fetch(url).then(r => r.json())
-const textFetcher = (url: string) =>
-  fetch(url).then(r => (r.ok ? r.text() : Promise.resolve(null)))
+import TaskPreview   from '@/components/TaskPreview'
+import LogTerminal   from '@/components/LogTerminal'
+import HistoryFeed   from '@/components/HistoryFeed'
+import WorkflowList  from '@/components/WorkflowList'
+import WorkspaceScan from '@/components/WorkspaceScan'
 
 export default function Dashboard() {
-  const { data: snapshot } = useSWR<Snapshot>('/api/status', jsonFetcher, {
-    refreshInterval: 3000,
-  })
-  const { data: taskMd } = useSWR<string | null>('/api/current-task', textFetcher, {
-    refreshInterval: 3000,
-  })
-  const { data: workflows } = useSWR<Workflow[]>('/api/workflows', jsonFetcher, {
-    refreshInterval: 30_000,
-  })
+  const { snapshot }  = useSnapshot()
+  const { markdown }  = useTaskMarkdown()
+  const { workflows } = useWorkflows()
+  const { files }     = useWorkspaceScan()
 
   if (!snapshot) {
     return (
@@ -47,16 +41,19 @@ export default function Dashboard() {
         {/* Task preview + log terminal */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <TaskPreview markdown={taskMd ?? ''} />
+            <TaskPreview markdown={markdown} />
           </div>
           <div>
             <LogTerminal lines={snapshot.log_lines ?? []} />
           </div>
         </div>
 
+        {/* Workspace file activity */}
+        <WorkspaceScan files={files} />
+
         {/* Workflows + history */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <WorkflowList workflows={workflows ?? []} />
+          <WorkflowList workflows={workflows} />
           <div className="lg:col-span-2">
             <HistoryFeed history={snapshot.history ?? []} />
           </div>
