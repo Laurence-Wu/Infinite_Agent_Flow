@@ -97,6 +97,36 @@ class InstructionWrapper:
         )
         return self
 
+    def add_venv_directive(self, workspace_path: str) -> "InstructionWrapper":
+        """Inject venv creation and management instructions (Windows).
+        Tells the agent to use an isolated virtual environment at
+        {workspace}\\.venv for all Python experimentation, keeping the
+        system Python untouched."""
+        self._prefixes.append(
+            f"**PYTHON VIRTUAL ENVIRONMENT**: All Python work in this task must be "
+            f"done inside the isolated virtual environment at `{workspace_path}\\.venv`.\n\n"
+            f"**Setup** (run once if `.venv` does not exist yet):\n"
+            f"```\n"
+            f"python -m venv {workspace_path}\\.venv\n"
+            f"```\n\n"
+            f"**Activate** before running any Python or `pip` command:\n"
+            f"```\n"
+            f"{workspace_path}\\.venv\\Scripts\\activate\n"
+            f"```\n\n"
+            f"**Install packages** only inside the venv:\n"
+            f"```\n"
+            f"pip install <package>           # after activation\n"
+            f"pip freeze > requirements.txt   # to record dependencies\n"
+            f"```\n\n"
+            f"**Rules**:\n"
+            f"- Never use `pip install` without first activating the venv.\n"
+            f"- Never modify or install to the system Python.\n"
+            f"- If the venv is missing or broken, delete `.venv` and recreate it.\n"
+            f"- Always run experiments with the venv Python: "
+            f"`{workspace_path}\\.venv\\Scripts\\python.exe`\n\n"
+        )
+        return self
+
     def add_infinite_loop_directive(self) -> "InstructionWrapper":
         """Inject the infinite-loop commitment directive.
         Tells the agent it operates inside a perpetual autonomous loop and

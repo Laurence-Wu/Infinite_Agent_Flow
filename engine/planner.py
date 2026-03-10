@@ -393,8 +393,23 @@ class CardsPlanner:
                 break
 
         n = len(ordered)
+        # Collect card IDs owned by OTHER loops so we never overwrite them.
+        other_loop_ids: set = set()
+        for lid, loop_cards in wf.loops.items():
+            if lid != loop_id:
+                other_loop_ids.update(c.id for c in loop_cards)
+        available = [f for f in FRUIT_POOL if f not in other_loop_ids]
+        if len(available) < n:
+            raise WorkflowValidationError(
+                workflow=workflow_name,
+                detail=(
+                    f"Fruit pool exhausted: need {n} names for loop '{loop_id}' "
+                    f"but only {len(available)} are free (not used by other loops). "
+                    f"Expand FRUIT_POOL or reduce loop size."
+                ),
+            )
         # Pick n unique fruits; sort so alphabetical order == logical order.
-        fruits = sorted(random.sample(FRUIT_POOL, n))
+        fruits = sorted(random.sample(available, n))
 
         old_ids = [c.id for c in ordered]
         mapping = {old_ids[i]: fruits[i] for i in range(n)}
