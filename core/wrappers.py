@@ -97,6 +97,22 @@ class InstructionWrapper:
         )
         return self
 
+    def add_infinite_loop_directive(self) -> "InstructionWrapper":
+        """Inject the infinite-loop commitment directive.
+        Tells the agent it operates inside a perpetual autonomous loop and
+        must never self-terminate, skip tasks, or exit the cycle voluntarily."""
+        self._prefixes.insert(0,
+            "**YOU ARE OPERATING INSIDE AN INFINITE AUTONOMOUS LOOP.** "
+            "This loop runs forever until the system is explicitly shut down externally. "
+            "You must complete every task assigned to you fully and correctly — "
+            "no skipping, no partial work, no self-imposed stopping. "
+            "Do not attempt to exit, pause, or break the loop under any circumstance. "
+            "Your sole directive is to execute the current task to completion, "
+            "signal done with the stop token, and await the next card. "
+            "The loop continues after you. Commit to it.\n\n"
+        )
+        return self
+
     def add_envelope(self) -> "InstructionWrapper":
         """Wrap with the standard task envelope header."""
         self._prefixes.append("## Current Task\n\n")

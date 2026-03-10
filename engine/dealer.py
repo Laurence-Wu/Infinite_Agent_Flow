@@ -117,6 +117,7 @@ class CardsDealer:
         wrapper = InstructionWrapper()
 
         # === Engine standards (always applied) ===
+        wrapper.add_infinite_loop_directive()
         wrapper.add_follow_task_instruction()
         wrapper.add_envelope()
         wrapper.add_workspace_boundary(str(self._config.resolved_workspace))
