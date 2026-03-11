@@ -45,6 +45,8 @@ class DashboardRouter:
         """Bind all routes to the Flask application."""
         # ── JSON API ──────────────────────────────────────────────────────
         app.add_url_rule("/api/status",        "api_status",         self.api_status)
+        app.add_url_rule("/api/agents",        "api_agents",         self.api_agents)
+        app.add_url_rule("/api/report-state",  "api_report_state",   self.api_report_state, methods=["POST"])
         app.add_url_rule("/api/workflows",      "api_workflows",      self.api_workflows)
         app.add_url_rule("/api/history",        "api_history",        self.api_history)
         app.add_url_rule("/api/current-task",   "api_current_task",   self.api_current_task)
@@ -61,7 +63,20 @@ class DashboardRouter:
     # ── JSON handlers ─────────────────────────────────────────────────────
 
     def api_status(self):
-        return jsonify(self.state.get_snapshot())
+        from flask import request
+        agent_id = request.args.get("agent_id")
+        return jsonify(self.state.get_snapshot(agent_id))
+
+    def api_agents(self):
+        return jsonify(self.state.get_all_snapshots())
+
+    def api_report_state(self):
+        from flask import request
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Missing JSON body"}), 400
+        self.state.update_from_snapshot(data)
+        return jsonify({"status": "ok"})
 
     def api_workflows(self):
         return jsonify(self.picker.list_workflows())

@@ -8,6 +8,7 @@ export interface HistoryEntry {
 }
 
 export interface Snapshot {
+  agent_id: string
   current_card_id: string | null
   current_workflow: string | null
   current_version: string | null
