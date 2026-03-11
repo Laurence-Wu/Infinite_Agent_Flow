@@ -1,9 +1,9 @@
 """
-CardsPlanner — Watchdog-based task monitor, archiver, and workflow advancer.
+CardsPlanner \u2014 Watchdog-based task monitor, archiver, and workflow advancer.
 
 Watches current_task.md for the ![next]! token using OS-native file events
 (watchdog).  On detection: extracts summary, archives the task, appends
-to master_summary.md, and advances to the next card via Picker → Dealer.
+to master_summary.md, and advances to the next card via Picker \u2192 Dealer.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from watchdog.events import FileModifiedEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
 from core.config import EngineConfig
-from core.exceptions import TaskFileError
+from core.exceptions import TaskFileError, WorkflowValidationError
 from core.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ class CardsPlanner:
         self._current_workflow: Optional[str] = None
         self._current_version: Optional[str] = None
         self._current_loop_id: str = "main"
-        # Maps loop_id → id of that loop's first card (used to detect cycle completion).
+        # Maps loop_id \u2192 id of that loop's first card (used to detect cycle completion).
         self._first_card_id_per_loop: Dict[str, str] = {}
         self._first_card_id: Optional[str] = None  # kept for single-loop backward compat
 
@@ -104,8 +104,10 @@ class CardsPlanner:
         """
         Kick off a workflow: deal the first card and begin monitoring.
         """
-        first_card = self._picker.get_first_card(workflow_name, version)
-        total = self._picker.get_total_cards(workflow_name, version)
+        wf = self._picker.load_workflow(workflow_name, version)
+        first_card = wf.first_card
+        aliased_first = wf.get_aliased_card(first_card.id)
+        total = wf.total_cards
         idx = 0
 
         self._current_card_id = first_card.id
@@ -115,12 +117,11 @@ class CardsPlanner:
         self._first_card_id = first_card.id  # backward compat
 
         # Build per-loop first-card registry from the loaded workflow.
-        wf = self._picker.load_workflow(workflow_name, version)
         self._first_card_id_per_loop = {
             lid: cards[0].id for lid, cards in wf.loops.items()
         }
 
-        self._dealer.deal_card(first_card, card_index=idx, total_cards=total)
+        self._dealer.deal_card(aliased_first, card_index=idx, total_cards=total)
         self._start_monitoring()
         logger.info("Workflow %s/%s started with card %s", workflow_name, version, first_card.id)
 
@@ -137,7 +138,7 @@ class CardsPlanner:
             while not self._stop_event.is_set():
                 self._stop_event.wait(timeout=0.5)
         except KeyboardInterrupt:
-            logger.info("KeyboardInterrupt received — shutting down.")
+            logger.info("KeyboardInterrupt received \u2014 shutting down.")
         finally:
             self._cleanup()
             logger.info("Planner run loop exited.")
@@ -164,7 +165,7 @@ class CardsPlanner:
         self._observer.daemon = True
         self._observer.start()
 
-        logger.debug("Monitoring started — waiting for ![next]!")
+        logger.debug("Monitoring started \u2014 waiting for ![next]!")
 
     def _on_task_file_changed(self) -> None:
         """Called by the watchdog handler when current_task.md is modified.
@@ -186,7 +187,7 @@ class CardsPlanner:
             # immediately and we can safely stop/restart the observer.
             if self._processing_lock.acquire(blocking=False):
                 self._ignoring_events = True  # Suppress immediately
-                logger.info("![next]! detected — advancing workflow.")
+                logger.info("![next]! detected \u2014 advancing workflow.")
                 t = threading.Thread(
                     target=self._handle_completion_safe,
                     args=(content,),
@@ -244,7 +245,10 @@ class CardsPlanner:
         """Move current_task.md to archive/ and append to master_summary.md."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         card_id = self._current_card_id or "unknown"
-        archive_name = f"{card_id}_{timestamp}.md"
+        # Use alias for filename if it exists
+        wf = self._picker.load_workflow(self._current_workflow, self._current_version)
+        alias = wf.alias_map.get(card_id, card_id)
+        archive_name = f"{alias}_{timestamp}.md"
         archive_dest = self.config.archive_path / archive_name
 
         try:
@@ -259,14 +263,14 @@ class CardsPlanner:
             # Append summary to master file
             master = self.config.master_summary_file
             entry = (
-                f"\n## {card_id} — {self._current_workflow}/{self._current_version}\n"
+                f"\n## {alias} ({card_id}) \u2014 {self._current_workflow}/{self._current_version}\n"
                 f"**Completed**: {datetime.now().isoformat()}\n\n"
                 f"{summary}\n\n---\n"
             )
             with master.open("a", encoding="utf-8") as f:
                 f.write(entry)
 
-            logger.info("Archived %s to %s", card_id, archive_dest)
+            logger.info("Archived %s to %s", alias, archive_dest)
 
         except OSError as exc:
             logger.error("Archive failed: %s", exc)
@@ -280,56 +284,55 @@ class CardsPlanner:
         if self._stop_event.is_set():
             return
 
-        next_card = self._picker.get_next_card(
-            self._current_workflow,
-            self._current_version,
-            self._current_card_id,
-        )
+        wf = self._picker.load_workflow(self._current_workflow, self._current_version)
+        current_card = wf.get_card(self._current_card_id)
+        next_card_id = current_card.next_card
 
-        if next_card is None:
+        if next_card_id is None:
             logger.info("Workflow %s/%s completed!", self._current_workflow, self._current_version)
             self._state.set_workflow_finished()
             self._stop_event.set()
             return
 
-        next_loop = next_card.loop_id
+        # Resolve next card object (could be an alias or internal ID)
+        next_card_obj = wf.get_card(next_card_id)
+        
+        next_loop = next_card_obj.loop_id
         is_cross_loop = (next_loop != self._current_loop_id)
         is_loop_complete = (
             not is_cross_loop
-            and next_card.id == self._first_card_id_per_loop.get(self._current_loop_id)
+            and next_card_obj.id == self._first_card_id_per_loop.get(self._current_loop_id)
         )
 
         if is_loop_complete:
-            # Reshuffle only this loop's cards, leaving other loops untouched.
-            new_first_id = self._reshuffle_card_names(
+            # Reshuffle only this loop's cards in memory.
+            new_first_internal_id = self._reshuffle_card_names(
                 self._current_workflow, self._current_version,
                 loop_id=self._current_loop_id,
             )
-            self._first_card_id_per_loop[self._current_loop_id] = new_first_id
-            self._first_card_id = new_first_id  # backward compat
-            # Reload the freshly-renamed first card of this loop.
-            next_card = self._picker.get_loop_first_card(
-                self._current_workflow, self._current_version,
-                self._current_loop_id,
-            )
-        elif is_cross_loop:
-            self._current_loop_id = next_loop
-            logger.info("Cross-loop transition → loop '%s'", next_loop)
+            self._first_card_id_per_loop[self._current_loop_id] = new_first_internal_id
+            self._first_card_id = new_first_internal_id  # backward compat
+            # Resolve the new aliased version of the loop start
+            aliased_next = wf.get_aliased_card(new_first_internal_id)
+        else:
+            if is_cross_loop:
+                self._current_loop_id = next_loop
+                logger.info("Cross-loop transition \u2192 loop '%s'", next_loop)
+            aliased_next = wf.get_aliased_card(next_card_obj.id)
 
-        total = self._picker.get_total_cards(self._current_workflow, self._current_version)
-        idx = self._picker.get_card_index(self._current_workflow, self._current_version, next_card.id)
+        total = wf.total_cards
+        idx = wf.card_index(aliased_next.id)
 
-        # Stop old observer BEFORE writing the new card file,
-        # so it doesn't catch the file-write event and false-trigger.
+        # Stop old observer BEFORE writing the new card file
         if self._observer is not None:
             self._observer.stop()
             self._observer = None
 
-        self._current_card_id = next_card.id
-        self._dealer.deal_card(next_card, card_index=idx, total_cards=total)
+        self._current_card_id = aliased_next.id
+        self._dealer.deal_card(aliased_next, card_index=idx, total_cards=total)
         self._start_monitoring()
 
-        logger.info("Advanced to card %s (%d/%d)", next_card.id, idx + 1, total)
+        logger.info("Advanced to card %s (%d/%d)", aliased_next.id, idx + 1, total)
 
     # ------------------------------------------------------------------ #
     #  Card name obfuscation
@@ -339,20 +342,12 @@ class CardsPlanner:
         self, workflow_name: str, version: str, *, loop_id: str = "main"
     ) -> str:
         """
-        Rename all card JSON files belonging to *loop_id* in the workflow
-        version directory to a new set of randomly selected fruit names,
-        updating the internal "id" and "next_card" pointers to match.
-        Cards in other loops are left completely untouched.
+        Assign a new set of randomly selected fruit names as aliases for
+        all cards in *loop_id*. Original files on disk are UNCHANGED.
 
-        Invalidates the picker's in-memory cache so the renamed files are
-        reloaded on the next access.
-
-        Returns the new first card's ID (alphabetically first fruit name).
+        Returns the internal ID of the first card in the loop.
         """
-        cache_key = f"{workflow_name}/{version}"
-        wf = self._picker._workflows.get(cache_key)
-        if wf is None:
-            wf = self._picker.load_workflow(workflow_name, version)
+        wf = self._picker.load_workflow(workflow_name, version)
 
         # Follow the next_card chain from this loop's first card.
         loop_first = wf.get_loop_first_card(loop_id)
@@ -374,61 +369,38 @@ class CardsPlanner:
                 break
 
         n = len(ordered)
-        # Collect card IDs owned by OTHER loops so we never overwrite them.
-        other_loop_ids: set = set()
+        # Collect alias names owned by OTHER loops so we never reuse them.
+        other_loop_aliases: set = set()
         for lid, loop_cards in wf.loops.items():
             if lid != loop_id:
-                other_loop_ids.update(c.id for c in loop_cards)
-        available = [f for f in FRUIT_POOL if f not in other_loop_ids]
+                for c in loop_cards:
+                    alias = wf.alias_map.get(c.id)
+                    if alias:
+                        other_loop_aliases.add(alias)
+
+        available = [f for f in FRUIT_POOL if f not in other_loop_aliases]
         if len(available) < n:
             raise WorkflowValidationError(
                 workflow=workflow_name,
                 detail=(
                     f"Fruit pool exhausted: need {n} names for loop '{loop_id}' "
-                    f"but only {len(available)} are free (not used by other loops). "
+                    f"but only {len(available)} are free. "
                     f"Expand FRUIT_POOL or reduce loop size."
                 ),
             )
         # Pick n unique fruits; sort so alphabetical order == logical order.
         fruits = sorted(random.sample(available, n))
 
-        old_ids = [c.id for c in ordered]
-        mapping = {old_ids[i]: fruits[i] for i in range(n)}
-
-        wf_dir = (
-            self._picker._config.resolved_workflows / workflow_name / version
-        )
-
-        # Write new files first (safety: no data loss if something fails).
-        for i, card in enumerate(ordered):
-            new_id = fruits[i]
-            new_next = fruits[(i + 1) % n]     # wraps back to fruits[0] for last card
-
-            old_path = wf_dir / f"{card.id}.json"
-            with old_path.open("r", encoding="utf-8") as fh:
-                data = json.load(fh)
-
-            data["id"] = new_id
-            data["next_card"] = new_next
-
-            new_path = wf_dir / f"{new_id}.json"
-            with new_path.open("w", encoding="utf-8") as fh:
-                json.dump(data, fh, indent=2, ensure_ascii=False)
-
-        # Delete old files (only after all new files are safely written).
-        for card in ordered:
-            old_path = wf_dir / f"{card.id}.json"
-            if old_path.exists():
-                old_path.unlink()
-
-        # Invalidate picker cache so it reloads from the renamed files.
-        self._picker._workflows.pop(cache_key, None)
+        # Update the workflow's in-memory alias map
+        new_aliases = {ordered[i].id: fruits[i] for i in range(n)}
+        wf.set_loop_aliases(loop_id, new_aliases)
 
         logger.info(
-            "Reshuffled %s/%s: %s → %s",
-            workflow_name, version, old_ids, fruits,
+            "Reshuffled %s/%s loop '%s' in memory: %s \u2192 %s",
+            workflow_name, version, loop_id, 
+            [c.id for c in ordered], fruits,
         )
-        return fruits[0]
+        return ordered[0].id
 
     # ------------------------------------------------------------------ #
     #  Cleanup

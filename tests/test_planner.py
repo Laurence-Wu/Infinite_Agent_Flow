@@ -78,7 +78,7 @@ class TestPlannerArchival(unittest.TestCase):
 
 
 class TestMultiLoopReshuffle(unittest.TestCase):
-    """Test that _reshuffle_card_names only affects the specified loop."""
+    """Test that _reshuffle_card_names only affects the specified loop in-memory."""
 
     def _write_card(self, directory: Path, card_id: str, loop_id: str, next_card: str) -> None:
         data = {
@@ -92,7 +92,7 @@ class TestMultiLoopReshuffle(unittest.TestCase):
         )
 
     def test_reshuffle_does_not_touch_other_loop_files(self):
-        """Reshuffling 'feature' loop must leave 'ops' loop files untouched."""
+        """Reshuffling 'feature' loop must leave 'ops' loop aliases untouched and disk files intact."""
         from engine.picker import CardsPicker
         from engine.dealer import CardsDealer
         from engine.planner import CardsPlanner
@@ -105,10 +105,10 @@ class TestMultiLoopReshuffle(unittest.TestCase):
             workspace = Path(tmp) / "workspace"
             workspace.mkdir()
 
-            # Feature loop: feature_01 → feature_02 → feature_01
+            # Feature loop: feature_01 \u2192 feature_02 \u2192 feature_01
             self._write_card(wf_dir, "feature_01", "feature", "feature_02")
             self._write_card(wf_dir, "feature_02", "feature", "feature_01")
-            # Ops loop: ops_01 → ops_01 (single-card loop)
+            # Ops loop: ops_01 \u2192 ops_01 (single-card loop)
             self._write_card(wf_dir, "ops_01", "ops", "ops_01")
 
             cfg = EngineConfig(workspace_path=str(workspace), workflows_path=str(Path(tmp) / "workflows"))
@@ -117,25 +117,27 @@ class TestMultiLoopReshuffle(unittest.TestCase):
             dealer = CardsDealer(cfg, state)
             planner = CardsPlanner(cfg, state, picker, dealer)
 
+            # Load workflow to initialize cache
+            wf = picker.load_workflow("test_wf", "v1")
+
             # Reshuffle only the 'feature' loop
-            planner._reshuffle_card_names.__func__  # ensure method exists
-            new_first = planner._reshuffle_card_names("test_wf", "v1", loop_id="feature")
+            new_first_id = planner._reshuffle_card_names("test_wf", "v1", loop_id="feature")
 
-            # ops_01.json must still exist
-            self.assertTrue((wf_dir / "ops_01.json").exists(),
-                            "ops_01.json should not be renamed by feature reshuffle")
+            # DISK CHECK: All files must still exist with original names
+            self.assertTrue((wf_dir / "ops_01.json").exists())
+            self.assertTrue((wf_dir / "feature_01.json").exists())
+            self.assertTrue((wf_dir / "feature_02.json").exists())
 
-            # feature_01.json and feature_02.json must be gone (renamed)
-            self.assertFalse((wf_dir / "feature_01.json").exists(),
-                             "feature_01.json should be renamed after reshuffle")
-            self.assertFalse((wf_dir / "feature_02.json").exists(),
-                             "feature_02.json should be renamed after reshuffle")
+            # ALIAS CHECK: feature_01 and feature_02 should have aliases
+            self.assertIn("feature_01", wf.alias_map)
+            self.assertIn("feature_02", wf.alias_map)
+            # ops_01 should NOT have an alias (unless it's its own ID)
+            self.assertNotIn("ops_01", wf.alias_map)
 
-            # New fruit files should exist and have loop_id = "feature"
-            new_file = wf_dir / f"{new_first}.json"
-            self.assertTrue(new_file.exists(), f"{new_first}.json should exist")
-            new_data = json.loads(new_file.read_text(encoding="utf-8"))
-            self.assertEqual(new_data["loop_id"], "feature")
+            # verify aliased card retrieval
+            aliased = wf.get_aliased_card("feature_01")
+            self.assertEqual(aliased.id, wf.alias_map["feature_01"])
+            self.assertEqual(aliased.next_card, wf.alias_map["feature_02"])
 
 
 if __name__ == "__main__":

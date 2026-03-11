@@ -117,6 +117,10 @@ class BaseWorkflow:
     version: str
     guidance_path: Optional[Path] = None
     cards: List[BaseCard] = field(default_factory=list)
+    # Maps internal card ID (e.g. "card_01") to active alias (e.g. "apple")
+    alias_map: Dict[str, str] = field(default_factory=dict)
+    # Reverse map: alias -> internal ID
+    reverse_alias_map: Dict[str, str] = field(default_factory=dict)
 
     # ---- loading ----
 
@@ -163,11 +167,44 @@ class BaseWorkflow:
     # ---- queries ----
 
     def get_card(self, card_id: str) -> BaseCard:
-        """Retrieve a card by ID. Raises CardNotFoundError if missing."""
+        """Retrieve a card by ID or alias. Raises CardNotFoundError if missing."""
+        # Try alias first
+        internal_id = self.reverse_alias_map.get(card_id, card_id)
         for card in self.cards:
-            if card.id == card_id:
+            if card.id == internal_id:
                 return card
         raise CardNotFoundError(card_id, workflow=self.name)
+
+    def get_aliased_card(self, card_id: str) -> BaseCard:
+        """
+        Retrieve a card by internal ID or alias, and return a copy with
+        its 'id' and 'next_card' mapped to their active aliases.
+        """
+        card = self.get_card(card_id)
+        # Create a shallow copy for aliasing
+        import copy
+        aliased = copy.copy(card)
+        aliased.id = self.alias_map.get(card.id, card.id)
+        if card.next_card:
+            aliased.next_card = self.alias_map.get(card.next_card, card.next_card)
+        return aliased
+
+    def set_loop_aliases(self, loop_id: str, aliases: Dict[str, str]) -> None:
+        """
+        Set aliases for all cards in a loop. 
+        'aliases' maps internal ID -> alias string.
+        """
+        # Remove old reverse mappings for this loop
+        loop_cards = self.loops.get(loop_id, [])
+        for c in loop_cards:
+            old_alias = self.alias_map.get(c.id)
+            if old_alias:
+                self.reverse_alias_map.pop(old_alias, None)
+        
+        # Update mappings
+        self.alias_map.update(aliases)
+        for internal_id, alias in aliases.items():
+            self.reverse_alias_map[alias] = internal_id
 
     @property
     def loops(self) -> Dict[str, List["BaseCard"]]:
