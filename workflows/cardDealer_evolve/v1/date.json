@@ -1,9 +1,9 @@
 {
-  "id": "starfruit",
+  "id": "date",
   "loop_id": "main",
   "workflow": "cardDealer_evolve",
   "version": "v1",
-  "next_card": "tangerine",
+  "next_card": "kiwi",
   "metadata": {
     "priority": "high",
     "tags": [

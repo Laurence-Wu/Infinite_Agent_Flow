@@ -1,9 +1,9 @@
 {
-  "id": "tangerine",
+  "id": "kiwi",
   "loop_id": "main",
   "workflow": "cardDealer_evolve",
   "version": "v1",
-  "next_card": "ugli",
+  "next_card": "raspberry",
   "metadata": {
     "priority": "high",
     "tags": [

@@ -1,9 +1,9 @@
 {
-  "id": "ugli",
+  "id": "raspberry",
   "loop_id": "main",
   "workflow": "cardDealer_evolve",
   "version": "v1",
-  "next_card": "watermelon",
+  "next_card": "ximenia",
   "metadata": {
     "priority": "high",
     "max_time_seconds": 300,
