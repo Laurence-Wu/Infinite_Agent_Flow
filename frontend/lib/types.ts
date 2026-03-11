@@ -55,6 +55,8 @@ export interface Workflow {
   version: string
 }
 
+export type ActiveWorkflows = Record<string, string>
+
 export interface WorkspaceScanEntry {
   path:  string   // relative POSIX path e.g. "current_task.md"
   mtime: string   // ISO 8601 UTC e.g. "2026-03-10T14:22:01.123456+00:00"

@@ -84,7 +84,7 @@ export default function Dashboard() {
 
         {/* Workflows + history */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <WorkflowList workflows={workflows} />
+          <WorkflowList workflows={workflows} agents={agents} />
           <div className="lg:col-span-2">
             <HistoryFeed history={snapshot.history ?? []} />
           </div>

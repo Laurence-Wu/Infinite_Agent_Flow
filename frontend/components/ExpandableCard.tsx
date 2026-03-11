@@ -9,6 +9,8 @@ interface ExpandableCardProps {
   children: ReactNode;
   expandedContent?: ReactNode;
   defaultExpanded?: boolean;
+  isExpanded?: boolean;
+  onToggle?: (next: boolean) => void;
   className?: string;
 }
 
@@ -18,11 +20,23 @@ export default function ExpandableCard({
   children,
   expandedContent,
   defaultExpanded = false,
+  isExpanded,
+  onToggle,
   className = "",
 }: ExpandableCardProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
 
   const hasExpandableContent = expandedContent !== undefined;
+  const expanded = isExpanded ?? internalExpanded;
+
+  const handleToggle = () => {
+    if (!hasExpandableContent) return;
+    const next = !expanded;
+    if (isExpanded === undefined) {
+      setInternalExpanded(next);
+    }
+    onToggle?.(next);
+  };
 
   return (
     <div
@@ -33,7 +47,7 @@ export default function ExpandableCard({
         className={`flex items-center justify-between px-5 py-3 border-b border-slate-700/40 ${
           hasExpandableContent ? "cursor-pointer hover:bg-slate-800/30" : ""
         } transition-colors duration-200`}
-        onClick={() => hasExpandableContent && setIsExpanded(!isExpanded)}
+        onClick={handleToggle}
       >
         <div className="flex items-center gap-2">
           {icon}
@@ -45,12 +59,12 @@ export default function ExpandableCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setIsExpanded(!isExpanded);
+              handleToggle();
             }}
             className="text-slate-500 hover:text-accent-light transition-colors duration-200"
-            aria-label={isExpanded ? "Collapse" : "Expand"}
+            aria-label={expanded ? "Collapse" : "Expand"}
           >
-            {isExpanded ? (
+            {expanded ? (
               <ChevronUp className="w-4 h-4" />
             ) : (
               <ChevronDown className="w-4 h-4" />
@@ -66,7 +80,7 @@ export default function ExpandableCard({
       {hasExpandableContent && (
         <div
           className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+            expanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
           }`}
         >
           <div className="border-t border-slate-700/30 bg-slate-800/20 p-5">
