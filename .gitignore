@@ -35,12 +35,19 @@ workflows/sample_workflow/*
 workflows/sample_workflow/v1/*
 !workflows/sample_workflow/v1/*.json
 !workflows/sample_workflow/v1/guidance.md
+
 !workflows/jobscrap_v2
 workflows/jobscrap_v2/*
 !workflows/jobscrap_v2/v1
 workflows/jobscrap_v2/v1/*
 !workflows/jobscrap_v2/v1/*.json
 !workflows/jobscrap_v2/v1/guidance.md
+
+!workflows/cardDealer_evolve
+workflows/cardDealer_evolve/*
+!workflows/cardDealer_evolve/v1
+workflows/cardDealer_evolve/v1/*
+!workflows/cardDealer_evolve/v1/*.json
 
 # IDE
 .vscode/
