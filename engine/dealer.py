@@ -32,10 +32,14 @@ class CardsDealer:
         self,
         config: EngineConfig,
         state: StateManager,
+        archive=None,              # Optional[core.archive.ArchiveManager]
+        agent_id: str = "default",
         base_wrapper: Optional[InstructionWrapper] = None,
     ):
         self._config = config
         self._state = state
+        self._archive = archive
+        self._agent_id = agent_id
         self._base_wrapper = base_wrapper or InstructionWrapper()
 
     # ------------------------------------------------------------------ #
@@ -54,7 +58,7 @@ class CardsDealer:
         1. Build the wrapper chain based on card metadata.
         2. Format the full markdown document.
         3. Write to disk.
-        4. Update StateManager.
+        4. Update StateManager with agent_id context.
 
         Returns the Path to the written file.
         """
@@ -70,7 +74,7 @@ class CardsDealer:
         except OSError as exc:
             raise TaskFileError(f"Failed to write {task_path}: {exc}")
 
-        # Update shared state
+        # Always pass agent_id so multi-agent state tracking works correctly
         self._state.set_current_card(
             card_id=card.id,
             workflow=card.workflow,
@@ -79,6 +83,7 @@ class CardsDealer:
             card_index=card_index,
             total_cards=total_cards,
             loop_id=card.loop_id,
+            agent_id=self._agent_id,
         )
 
         logger.info(
@@ -136,7 +141,7 @@ class CardsDealer:
         if custom_prefix:
             wrapper.add_custom(custom_prefix, position="prefix")
 
-        # Always add the stop-token footer
+        # Always add the stop-token footer (supports ![next]! and ![next:label]!)
         wrapper.add_stop_token_footer()
 
         return wrapper
@@ -156,6 +161,11 @@ class CardsDealer:
             f"| **Priority** | {card.priority} |",
             f"| **Timestamp** | {timestamp} |",
             f"| **Tags** | {', '.join(card.tags) if card.tags else '—'} |",
+        ]
+        if card.branches:
+            labels = ", ".join(f"`{k}`→`{v}`" for k, v in card.branches.items())
+            lines.append(f"| **Branches** | {labels} |")
+        lines += [
             f"",
             f"---",
             f"",

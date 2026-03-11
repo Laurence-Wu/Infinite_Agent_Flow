@@ -161,8 +161,14 @@ CardDealer/
 │   ├── base_card.py         # BaseCard (dataclass) + BaseWorkflow
 │   ├── config.py            # EngineConfig (paths, timeouts, regex)
 │   ├── exceptions.py        # 5 custom exception classes
+│   ├── process_utils.py     # Cross-platform process termination
 │   ├── state_manager.py     # Thread-safe StateManager (Lock)
 │   └── wrappers.py          # InstructionWrapper (builder pattern)
+│
+├── docs/                    # Project documentation
+│   ├── CARDDEALER_AUDIT.md  # Core codebase audit and metrics
+│   ├── EVOLVE_*.md          # Evolution sprints and changelogs
+│   └── ops_log.md           # Operational timeline
 │
 ├── engine/                  # Core processing components
 │   ├── __init__.py
@@ -187,12 +193,6 @@ CardDealer/
 │           ├── guidance.md
 │           ├── card_01.json
 │           └── card_02.json
-│
-└── tests/                   # Unit tests (49 tests)
-    ├── test_core.py         # BaseCard, BaseWorkflow, Wrappers, StateManager
-    ├── test_picker.py       # CardsPicker + path traversal security
-    ├── test_dealer.py       # CardsDealer markdown output
-    └── test_planner.py      # Stop-token regex, archival logic
 ```
 
 ## Workspace Output
@@ -209,11 +209,6 @@ output/
     └── ...                  # One archived file per completed card
 ```
 
-## Running Tests
-
-```bash
-python -m pytest tests/ -v
-```
 
 ## Configuration
 
@@ -229,7 +224,7 @@ All tunable parameters are in `core/config.py` via the `EngineConfig` dataclass:
 | `flask_host` | `"127.0.0.1"` | Dashboard bind address |
 | `flask_port` | `5000` | Dashboard port |
 | `default_timeout_seconds` | `600` | Per-card timeout if not specified in card |
-| `stop_token_regex` | `r'!?\[[Ss]top\]!?'` | Forgiving regex for stop-token detection |
+| `stop_token_regex` | `r"(?m)^!\[[Nn]ext\]!\s*$"` | Strict multiline regex for next-card token detection |
 
 ## Security
 

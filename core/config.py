@@ -17,17 +17,13 @@ class EngineConfig:
         workflows_path:         Root directory containing workflow definitions.
         archive_dir:            Subdirectory name inside workspace for finished tasks.
         current_task_filename:  Name of the active task markdown file.
-        stop_token_regex:       Forgiving regex for detecting the agent's next-card signal.
-        flask_port:             Port for the web dashboard.
-        flask_host:             Host for the web dashboard.
+        flask_host:             Bind host for the Flask dashboard (dashboard owner only).
     """
 
     workspace_path: str = "./workspace"
     workflows_path: str = "./workflows"
     archive_dir: str = "archive"
     current_task_filename: str = "current_task.md"
-    stop_token_regex: str = r"!?\[[Nn]ext\]!?"
-    flask_port: int = 5000
     flask_host: str = "127.0.0.1"
 
     # ----- derived paths (set in __post_init__) -----

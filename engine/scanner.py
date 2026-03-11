@@ -59,11 +59,8 @@ class WorkspaceScanner:
             return True
 
         # Exclude archive subtree
-        try:
-            entry.relative_to(self._archive)
+        if entry.is_relative_to(self._archive):
             return True
-        except ValueError:
-            pass
 
         # Exclude hidden directories (.git, .claude, etc.)
         parts = entry.relative_to(self._workspace).parts

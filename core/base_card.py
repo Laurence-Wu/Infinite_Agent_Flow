@@ -6,10 +6,10 @@ Every card and workflow in the engine inherits from these.
 from __future__ import annotations
 
 import json
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import copy
 
 from .exceptions import CardNotFoundError, WorkflowValidationError
 
@@ -29,7 +29,11 @@ class BaseCard:
         version:     Version tag (e.g. "v1").
         instruction: The raw instruction text for the AI agent.
         metadata:    Arbitrary key-value metadata (priority, tags, etc.).
-        next_card:   ID of the next card, or None if this is the final step.
+        next_card:   ID of the next card (default branch), or None if final.
+        loop_id:     Loop this card belongs to (default "main").
+        branches:    Named branch exits: label → card_id.
+                     Agent writes ``![next:label]!`` to pick a branch;
+                     falls back to ``next_card`` when label is absent.
     """
 
     id: str
@@ -39,12 +43,13 @@ class BaseCard:
     metadata: Dict[str, Any] = field(default_factory=dict)
     next_card: Optional[str] = None
     loop_id: str = "main"
+    branches: Dict[str, str] = field(default_factory=dict)
 
     # ---- serialization ----
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the card back to a JSON-compatible dict."""
-        return {
+        d: Dict[str, Any] = {
             "id": self.id,
             "loop_id": self.loop_id,
             "workflow": self.workflow,
@@ -53,6 +58,9 @@ class BaseCard:
             "metadata": self.metadata,
             "next_card": self.next_card,
         }
+        if self.branches:
+            d["branches"] = self.branches
+        return d
 
     @classmethod
     def from_json(cls, path: Path) -> "BaseCard":
@@ -81,6 +89,7 @@ class BaseCard:
             instruction=data["instruction"],
             metadata=data.get("metadata", {}),
             next_card=data.get("next_card"),
+            branches=data.get("branches", {}),
         )
 
     # ---- convenience ----
@@ -92,6 +101,20 @@ class BaseCard:
     @property
     def tags(self) -> List[str]:
         return self.metadata.get("tags", [])
+
+    def resolve_next(self, label: Optional[str] = None) -> Optional[str]:
+        """Return the card_id to advance to given an optional branch label.
+
+        Resolution order:
+        1. If *label* given and found in ``branches`` → use that target.
+        2. Fall back to ``next_card`` (default route).
+        3. Return None if this is the terminal card.
+        """
+        if label and self.branches:
+            target = self.branches.get(label)
+            if target:
+                return target
+        return self.next_card
 
     def __str__(self) -> str:
         return f"Card({self.id} @ {self.workflow}/{self.version})"
@@ -126,23 +149,13 @@ class BaseWorkflow:
 
     @classmethod
     def load(cls, workflow_dir: Path) -> "BaseWorkflow":
-        """
-        Load a workflow from a versioned directory.
-
-        Expects structure:
-            workflow_dir/
-                guidance.md      (optional)
-                card_01.json
-                card_02.json
-                ...
-        """
+        """Load a workflow from a versioned directory."""
         if not workflow_dir.is_dir():
             raise WorkflowValidationError(
                 workflow=str(workflow_dir),
                 detail="Directory does not exist",
             )
 
-        # Derive name/version from path  (e.g. workflows/sample_workflow/v1)
         version = workflow_dir.name
         name = workflow_dir.parent.name
 
@@ -168,7 +181,6 @@ class BaseWorkflow:
 
     def get_card(self, card_id: str) -> BaseCard:
         """Retrieve a card by ID or alias. Raises CardNotFoundError if missing."""
-        # Try alias first
         internal_id = self.reverse_alias_map.get(card_id, card_id)
         for card in self.cards:
             if card.id == internal_id:
@@ -176,46 +188,38 @@ class BaseWorkflow:
         raise CardNotFoundError(card_id, workflow=self.name)
 
     def get_aliased_card(self, card_id: str) -> BaseCard:
-        """
-        Retrieve a card by internal ID or alias, and return a copy with
-        its 'id' and 'next_card' mapped to their active aliases.
-        """
+        """Return a copy of the card with id/next_card/branches mapped to active aliases."""
         card = self.get_card(card_id)
-        # Create a shallow copy for aliasing
-        import copy
         aliased = copy.copy(card)
         aliased.id = self.alias_map.get(card.id, card.id)
         if card.next_card:
             aliased.next_card = self.alias_map.get(card.next_card, card.next_card)
+        if card.branches:
+            aliased.branches = {
+                label: self.alias_map.get(target, target)
+                for label, target in card.branches.items()
+            }
         return aliased
 
     def set_loop_aliases(self, loop_id: str, aliases: Dict[str, str]) -> None:
-        """
-        Set aliases for all cards in a loop. 
-        'aliases' maps internal ID -> alias string.
-        """
-        # Remove old reverse mappings for this loop
-        loop_cards = self.loops.get(loop_id, [])
-        for c in loop_cards:
+        """Set aliases for all cards in a loop (internal ID -> alias)."""
+        for c in self.loops.get(loop_id, []):
             old_alias = self.alias_map.get(c.id)
             if old_alias:
                 self.reverse_alias_map.pop(old_alias, None)
-        
-        # Update mappings
         self.alias_map.update(aliases)
         for internal_id, alias in aliases.items():
             self.reverse_alias_map[alias] = internal_id
 
     @property
     def loops(self) -> Dict[str, List["BaseCard"]]:
-        """Return cards grouped by loop_id, preserving load order within each group."""
+        """Return cards grouped by loop_id, preserving load order."""
         result: Dict[str, List[BaseCard]] = {}
         for card in self.cards:
             result.setdefault(card.loop_id, []).append(card)
         return result
 
     def get_loop_first_card(self, loop_id: str) -> "BaseCard":
-        """Return the first card of the given loop. Raises CardNotFoundError if loop missing."""
         loop_cards = self.loops.get(loop_id, [])
         if not loop_cards:
             raise CardNotFoundError(f"loop:{loop_id}", workflow=self.name)
@@ -223,11 +227,8 @@ class BaseWorkflow:
 
     @property
     def first_card(self) -> BaseCard:
-        """Return the first card in the workflow."""
         if not self.cards:
-            raise WorkflowValidationError(
-                self.name, detail="Workflow has no cards"
-            )
+            raise WorkflowValidationError(self.name, detail="Workflow has no cards")
         return self.cards[0]
 
     @property
@@ -235,7 +236,6 @@ class BaseWorkflow:
         return len(self.cards)
 
     def card_index(self, card_id: str) -> int:
-        """Return the 0-based index of a card. Raises CardNotFoundError."""
         for i, card in enumerate(self.cards):
             if card.id == card_id:
                 return i

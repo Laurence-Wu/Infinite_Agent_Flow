@@ -27,6 +27,27 @@ export interface Snapshot {
   log_lines: string[]
   engine_start_epoch: number | null
   uptime_seconds: number
+  is_paused?: boolean
+  workspace?: string
+}
+
+/** Lightweight summary returned by GET /api/agents (registry list). */
+export interface AgentEntry {
+  agent_id: string
+  workspace: string
+  workflow: string
+  version: string
+  status: 'idle' | 'running' | 'completed' | 'error' | 'workflow_finished'
+  current_card_id: string | null
+  started_at: string
+  last_updated: string | null
+  is_paused: boolean
+  cycles_completed: number
+  completed_total: number
+  progress_pct: number
+  card_index: number
+  total_cards: number
+  error: string | null
 }
 
 export interface Workflow {

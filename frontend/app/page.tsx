@@ -22,7 +22,7 @@ export default function Dashboard() {
   
   // Update activeAgentId if current one disappears, or if default is missing but others exist
   useEffect(() => {
-    const ids = Object.keys(agents)
+    const ids = agents.map(a => a.agent_id)
     if (ids.length > 0 && !ids.includes(activeAgentId)) {
       setActiveAgentId(ids[0])
     }
