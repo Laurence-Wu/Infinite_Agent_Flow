@@ -23,6 +23,11 @@ def kill_process_tree(proc: subprocess.Popen, name: str) -> None:
                 check=False,
             )
         else:
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            target_pgid = os.getpgid(proc.pid)
+            current_pgid = os.getpgrp()
+            if target_pgid == current_pgid:
+                proc.terminate()
+            else:
+                os.killpg(target_pgid, signal.SIGTERM)
     except Exception as exc:
         logger.warning("Could not stop %s: %s", name, exc)

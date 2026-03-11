@@ -211,6 +211,7 @@ class AgentOrchestrator:
                 creationflags=(
                     subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
                 ),
+                start_new_session=(sys.platform != "win32"),
             )
             logger.info(
                 "Next.js frontend started at http://localhost:3000 (proxying to port %d)",
@@ -236,6 +237,7 @@ class AgentOrchestrator:
                 creationflags=(
                     subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
                 ),
+                start_new_session=(sys.platform != "win32"),
             )
             logger.info("ngrok tunnel starting… fetching public URL.")
             threading.Thread(target=self._log_ngrok_url, daemon=True).start()

@@ -1,234 +1,280 @@
-# CardDealer — Agent Instruction Engine
+# CardDealer
 
-A modular AI agent orchestration system that drives an agent through task workflows
-using **card-based instructions**. Each card is a discrete task step written to a
-markdown file. The engine monitors the file for a stop token, archives the result,
-and deals the next card — creating an **indefinite control loop** for autonomous work.
+CardDealer is a card-driven orchestration engine for autonomous agent loops.
+It writes one active task markdown file, waits for a completion token, archives
+the result, then advances to the next card in a workflow.
 
-## Quick Start
+This repository currently includes:
+
+- Python orchestration engine (Picker, Dealer, Planner, state + archive)
+- Flask API server for control and telemetry
+- Next.js dashboard UI (port 3000) proxied to Flask APIs
+- Multi-agent support (local registry + peer attach mode)
+- Versioned workflows under `workflows/`
+
+## Current Architecture
+
+```text
+AgentOrchestrator (orchestrator.py)
+  -> build_agent_stack()
+     -> EngineConfig
+     -> ArchiveManager
+     -> StateManager (or RemoteStateManager in attach mode)
+     -> CardsPicker
+     -> CardsDealer
+     -> CardsPlanner (watchdog)
+
+Owner mode only:
+  -> Flask app (web/routes.py)
+  -> Next.js dev server (frontend/, optional)
+  -> ngrok tunnel (optional)
+```
+
+Flow per card:
+
+1. Picker loads workflow + current card.
+2. Dealer writes `current_task.md` with wrappers and metadata.
+3. External agent completes the task and appends `![next]!` or `![next:<label>]!`.
+4. Planner detects the token, archives artifacts, updates state, resolves next card.
+5. Loop repeats (or finishes if no next card).
+
+## Repository Layout
+
+```text
+CardDealer/
+  orchestrator.py
+  requirements.txt
+  README.md
+  core/                 # config, state, archive, factory, registry, wrappers
+  engine/               # picker, dealer, planner, scanner
+  web/                  # Flask app + API routes + legacy templates
+  frontend/             # Next.js dashboard UI (app/, components/, lib/)
+  workflows/            # versioned workflow cards (JSON + guidance.md)
+  workspace/            # runtime output for this repo's local runs
+  docs/                 # audits, backlog, sprint/changelog docs
+```
+
+## Prerequisites
+
+- Python 3.10+ (recommended)
+- Node.js 18+ (required only for Next.js UI)
+- `ngrok` in PATH (optional, only if using `--ngrok-auth`)
+
+## Setup
+
+### Python
 
 ```bash
-# 1. Install dependencies
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# Linux/macOS
+source .venv/bin/activate
+
 pip install -r requirements.txt
-
-# 2. Run the sample workflow (infinite loop)
-python orchestrator.py --workspace ./output --workflow sample_workflow --version v1
-
-# 3. Open the live dashboard
-#    http://localhost:5000
 ```
 
-## How It Works
+### Frontend (optional but recommended)
 
-```
-┌─────────────┐      ┌──────────┐      ┌──────────┐
-│   Picker    │─────▶│  Dealer  │─────▶│ Planner  │
-│ (load JSON) │      │ (write   │      │ (watch   │
-│             │      │  .md)    │      │  .md)    │
-└─────────────┘      └──────────┘      └──────────┘
-       ▲                                    │
-       │         ┌──────────────┐           │
-       └─────────│ Orchestrator │◀──────────┘
-                 └──────┬───────┘
-                        │
-                 ┌──────▼───────┐
-                 │  Dashboard   │
-                 │  (Flask)     │
-                 └──────────────┘
+```bash
+cd frontend
+npm install
+cd ..
 ```
 
-1. **Orchestrator** starts all components and the web dashboard.
-2. **Picker** loads the first card from the workflow's JSON chain.
-3. **Dealer** wraps the instruction (step-by-step, stop-token footer, metadata)
-   and writes `current_task.md` to the workspace.
-4. **An AI agent** reads the file, executes the task, and appends `![stop]!`.
-5. **Planner** (via watchdog) detects the stop token, extracts the summary,
-   archives the file, and tells the Picker to get the next card.
-6. The cycle repeats. **If the last card points back to the first, it loops forever.**
+If `frontend/node_modules` is missing, orchestrator will skip Next.js startup and continue with Flask only.
+
+## Run Modes
+
+### 1) Owner mode (starts Flask, Next.js if available, and planner)
+
+```bash
+python orchestrator.py --workspace ./workspace --workflow sample_workflow --version v1
+```
+
+UI/API URLs in owner mode:
+
+- Next.js dashboard: `http://localhost:3000`
+- Flask API: `http://localhost:5000`
+
+### 2) Peer attach mode (no local Flask)
+
+```bash
+python orchestrator.py \
+  --workspace ./workspace_peer \
+  --workflow sample_workflow \
+  --version v1 \
+  --server http://localhost:5000 \
+  --agent-id agent_1
+```
+
+In attach mode, state is reported to the owner server via `/api/report-state`.
+
+### 3) Owner mode with ngrok tunnel (optional)
+
+```bash
+python orchestrator.py --workspace ./workspace --workflow jobscrap_v2 --ngrok-auth "user:pass"
+```
 
 ## CLI Reference
 
-```
-python orchestrator.py [OPTIONS]
-```
-
-| Flag | Short | Required | Default | Description |
-|------|-------|----------|---------|-------------|
-| `--workspace` | `-w` | ✅ | — | Directory where `current_task.md` and `archive/` live |
-| `--workflow` | `-f` | ✅ | — | Workflow directory name (under `workflows/`) |
-| `--version` | `-v` | No | `v1` | Version subdirectory |
-| `--workflows-path` | — | No | `./workflows` | Custom root for all workflows |
-| `--port` | `-p` | No | `5000` | Flask dashboard port |
-
-### Examples
-
-```bash
-# Run sample workflow on port 8080
-python orchestrator.py -w ./output -f sample_workflow -v v1 -p 8080
-
-# Run a custom workflow from another directory
-python orchestrator.py -w /data/agent -f my_pipeline -v v2 --workflows-path /opt/workflows
+```text
+python orchestrator.py [options]
 ```
 
-## Creating Workflows
+| Flag | Short | Required | Default | Notes |
+|---|---|---|---|---|
+| `--workspace` | `-w` | Yes | - | Directory for `current_task.md` + `archive/` |
+| `--workflow` | `-f` | Yes | - | Workflow directory name under `workflows/` |
+| `--version` | `-v` | No | `v1` | Workflow version subdirectory |
+| `--workflows-path` | - | No | project `workflows/` | Custom workflows root |
+| `--port` | `-p` | No | `5000` | Flask port in owner mode |
+| `--server` / `--attach` | - | No | `None` | Attach to existing owner dashboard/API |
+| `--agent-id` | - | No | derived | Explicit id for this process |
+| `--ngrok-auth` | - | No | `None` | Starts ngrok to expose Next.js on port 3000 |
 
-A workflow is a directory of versioned JSON cards linked into a chain:
+## Workflow Format
 
+Each workflow lives at:
+
+```text
+workflows/<workflow_name>/<version>/
+  guidance.md      # optional
+  *.json           # cards
 ```
-workflows/
-└── my_workflow/
-    └── v1/
-        ├── guidance.md          # Optional: high-level guidance for the agent
-        ├── card_01.json         # First task
-        ├── card_02.json         # Second task
-        └── card_03.json         # Third task (next_card → card_01 for loop)
-```
 
-### Card JSON Schema
+Card schema used by the engine:
 
 ```json
 {
-  "id": "card_01",
-  "workflow": "my_workflow",
+  "id": "apple",
+  "loop_id": "main",
+  "workflow": "jobscrap_v2",
   "version": "v1",
-  "instruction": "Set up the project structure with src/, tests/, docs/ folders.",
+  "instruction": "...",
   "metadata": {
     "priority": "high",
-    "max_time_seconds": 300,
-    "tags": ["setup", "init"]
+    "tags": ["ops", "audit"],
+    "custom_wrapper": "optional"
   },
-  "next_card": "card_02"
+  "branches": {
+    "approved": "banana",
+    "rework": "cherry"
+  },
+  "next_card": "banana"
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | ✅ | Unique card identifier |
-| `workflow` | string | ✅ | Parent workflow name |
-| `version` | string | ✅ | Workflow version |
-| `instruction` | string | ✅ | The task instruction for the agent |
-| `metadata.priority` | string | No | `"high"` adds step-by-step guidance |
-| `metadata.max_time_seconds` | int | No | Per-card timeout (default: 600s) |
-| `metadata.tags` | list | No | Tags for categorization |
-| `next_card` | string/null | ✅ | ID of the next card, or the first card's ID for a loop |
+Notes:
 
-### Creating a Circular Loop
+- `branches` is optional. If present, agent can route with `![next:<label>]!`.
+- If no branch label is provided, planner uses `next_card`.
+- Cards are grouped by `loop_id`. Planner can reshuffle aliases per loop in memory.
 
-Set the **last card's** `next_card` to point back to the **first card**:
+## Completion Token Contract
 
-```json
-// card_01.json
-{ "next_card": "card_02" }
+Planner watches `current_task.md` and advances only when token lines are written to disk:
 
-// card_02.json (last card)
-{ "next_card": "card_01" }   // ← loops back!
+```text
+## Summary
+<what was done>
+
+![next]!
 ```
 
-The agent will work indefinitely: `card_01 → card_02 → card_01 → card_02 → ...`
+Branch route token variant:
 
-## Web Dashboard
-
-The live dashboard runs at `http://localhost:<port>` and auto-refreshes via HTMX (no custom JavaScript):
-
-- **Progress bar** — cycles 0-100% per loop iteration, shows cycle count
-- **Current Task panel** — card ID, workflow, status badge, instruction preview
-- **Available Workflows** — lists all workflows detected in the `workflows/` directory
-- **History feed** — reverse-chronological list of completed tasks with summaries
-
-### Dashboard API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Full dashboard page |
-| `/api/status` | GET | JSON snapshot of current state |
-| `/api/current-task` | GET | Raw markdown of `current_task.md` |
-| `/api/workflows` | GET | JSON list of available workflows |
-| `/api/history` | GET | JSON list of completed tasks |
-| `/partials/status` | GET | HTMX partial: status panel |
-| `/partials/progress` | GET | HTMX partial: progress bar |
-| `/partials/history` | GET | HTMX partial: history feed |
-
-## Architecture
-
-```
-CardDealer/
-├── orchestrator.py          # Main entry point + CLI
-├── requirements.txt         # flask, watchdog
-├── README.md
-│
-├── core/                    # Shared DRY foundation
-│   ├── __init__.py          # Re-exports all core classes
-│   ├── base_card.py         # BaseCard (dataclass) + BaseWorkflow
-│   ├── config.py            # EngineConfig (paths, timeouts, regex)
-│   ├── exceptions.py        # 5 custom exception classes
-│   ├── process_utils.py     # Cross-platform process termination
-│   ├── state_manager.py     # Thread-safe StateManager (Lock)
-│   └── wrappers.py          # InstructionWrapper (builder pattern)
-│
-├── docs/                    # Project documentation
-│   ├── CARDDEALER_AUDIT.md  # Core codebase audit and metrics
-│   ├── EVOLVE_*.md          # Evolution sprints and changelogs
-│   └── ops_log.md           # Operational timeline
-│
-├── engine/                  # Core processing components
-│   ├── __init__.py
-│   ├── picker.py            # CardsPicker — JSON loader, chain resolver
-│   ├── dealer.py            # CardsDealer — markdown writer
-│   └── planner.py           # CardsPlanner — watchdog monitor, archiver
-│
-├── web/                     # Flask dashboard
-│   ├── __init__.py
-│   ├── app.py               # Flask factory, API + HTMX routes
-│   ├── templates/
-│   │   ├── index.html       # Main dashboard (Tailwind + HTMX)
-│   │   ├── _status.html     # HTMX partial: current task
-│   │   ├── _progress.html   # HTMX partial: progress bar
-│   │   └── _history.html    # HTMX partial: completed tasks
-│   └── static/css/
-│       └── style.css        # Glassmorphism, scrollbar, transitions
-│
-├── workflows/               # Workflow card data
-│   └── sample_workflow/
-│       └── v1/
-│           ├── guidance.md
-│           ├── card_01.json
-│           └── card_02.json
+```text
+![next:approved]!
 ```
 
-## Workspace Output
+Important: `![stop]!` is not the planner token in current engine code.
+Some older workflow text may still mention `![stop]!`; treat that as legacy wording.
 
-When running, the workspace directory will contain:
+## Runtime Output
 
+Given `--workspace ./workspace`, runtime artifacts include:
+
+```text
+workspace/
+  current_task.md
+  archive/
+    <loop_id>/
+      <alias>_<timestamp>/
+        task.md
+        summary.md
+        logs.jsonl
+        meta.json
+    master_summary.md
 ```
-output/
-├── current_task.md          # Active task (written by Dealer, read by agent)
-├── master_summary.md        # Cumulative summary of all completed tasks
-└── archive/
-    ├── card_01_20260310_010428.md
-    ├── card_02_20260310_010500.md
-    └── ...                  # One archived file per completed card
+
+## API Overview (Flask)
+
+Main read endpoints:
+
+- `GET /api/status`
+- `GET /api/workflows`
+- `GET /api/history`
+- `GET /api/current-task`
+- `GET /api/logs`
+- `GET /api/workspace-scan`
+- `GET /api/archive`
+- `GET /api/archive/<loop_id>/<folder>`
+
+Agent endpoints:
+
+- `GET /api/agents`
+- `POST /api/agents` (start agent)
+- `GET /api/agent/<id>`
+- `GET /api/agent/<id>/logs`
+- `GET /api/agent/<id>/history`
+- `POST /api/agent/<id>/pause`
+- `POST /api/agent/<id>/resume`
+- `POST /api/agent/<id>/stop`
+- `POST /api/agent/<id>/deal`
+- `POST /api/report-state` (peer state ingestion)
+
+Backward-compatible aliases are also exposed under `/api/workflow/*`, `/api/deal-next`, `/api/agent/start`.
+
+## Frontend Notes
+
+- Next.js dev server runs on port `3000`.
+- `frontend/next.config.js` rewrites `/api/*` to Flask on `localhost:${FLASK_PORT}`.
+- Orchestrator sets `FLASK_PORT` when launching frontend in owner mode.
+
+## Workflows Present In This Repo
+
+- `sample_workflow/v1`
+- `cardDealer_evolve/v1`
+- `jobscrap_v2/v1`
+
+## Troubleshooting
+
+### Frontend did not start
+
+Cause: missing `frontend/node_modules` or missing `npm`.
+
+Fix:
+
+```bash
+cd frontend
+npm install
 ```
 
+### No workflow advancement
 
-## Configuration
+Cause: completion token not written exactly as expected.
 
-All tunable parameters are in `core/config.py` via the `EngineConfig` dataclass:
+Fix: ensure `current_task.md` contains `![next]!` or `![next:<label>]!` on its own line.
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `workspace_path` | `"."` | Working directory for task files |
-| `workflows_path` | `"./workflows"` | Root directory for workflow data |
-| `task_filename` | `"current_task.md"` | Name of the active task file |
-| `archive_dirname` | `"archive"` | Name of the archive subdirectory |
-| `master_summary_filename` | `"master_summary.md"` | Cumulative summary file |
-| `flask_host` | `"127.0.0.1"` | Dashboard bind address |
-| `flask_port` | `5000` | Dashboard port |
-| `default_timeout_seconds` | `600` | Per-card timeout if not specified in card |
-| `stop_token_regex` | `r"(?m)^!\[[Nn]ext\]!\s*$"` | Strict multiline regex for next-card token detection |
+### Attach mode agent not visible
 
-## Security
+Cause: owner server URL unreachable or wrong port.
 
-- **Path traversal protection**: All workflow paths are validated using `pathlib.resolve()`.
-  Requests like `../../etc/passwd` are blocked by the Picker.
-- **Thread safety**: The `StateManager` uses `threading.Lock()` for all reads/writes,
-  preventing race conditions between Flask and the Planner.
+Fix: verify owner mode is running and reachable at the `--server` URL.
+
+## Security Notes
+
+- Never commit secrets (`.env`, private keys, credential files).
+- Treat `--ngrok-auth user:pass` as sensitive and rotate if exposed.
+- Workflow path resolution is guarded against directory traversal in picker.
