@@ -42,6 +42,8 @@ class StateManager:
     Planner writes via set_*/update_* → acquires lock, mutates in-place.
     """
 
+    LOG_BUFFER_SIZE = 300
+
     def __init__(self):
         self._lock = threading.Lock()
         self._state = TaskSnapshot()
@@ -73,7 +75,7 @@ class StateManager:
                 "last_updated": self._state.last_updated,
                 "history": copy.deepcopy(self._state.history),
                 "error": self._state.error,
-                "log_lines": list(self._state.log_lines[-150:]),
+                "log_lines": list(self._state.log_lines[-self.LOG_BUFFER_SIZE:]),
                 "engine_start_epoch": self._state.engine_start_epoch,
                 "uptime_seconds": self._uptime_seconds(),
             }
@@ -107,11 +109,11 @@ class StateManager:
             self._state.error = None
 
     def push_log(self, line: str) -> None:
-        """Append a log line to the ring buffer (max 300 lines)."""
+        """Append a log line to the ring buffer (max LOG_BUFFER_SIZE lines)."""
         with self._lock:
             self._state.log_lines.append(line)
-            if len(self._state.log_lines) > 300:
-                del self._state.log_lines[:-300]
+            if len(self._state.log_lines) > self.LOG_BUFFER_SIZE:
+                del self._state.log_lines[:-self.LOG_BUFFER_SIZE]
 
     def mark_completed(self, summary: str) -> None:
         """Archive the current card into history and reset active state."""

@@ -1,0 +1,17 @@
+{
+  "id": "card_03",
+  "loop_id": "main",
+  "workflow": "sample_workflow",
+  "version": "v1",
+  "next_card": "card_04",
+  "metadata": {
+    "priority": "high",
+    "max_time_seconds": 1200,
+    "tags": [
+      "implement",
+      "refactor",
+      "bounded"
+    ]
+  },
+  "instruction": "## card_03 · Implement — Bounded Code Improvement\n\n### Goal\nImplement the single bounded improvement defined in `REFACTOR_SPRINT.md`, respecting hard scope limits, without breaking any existing tests.\n\n### Loop Rule\nIf the improvement from `REFACTOR_SPRINT.md` is already fully implemented (all acceptance criteria pass), do NOT invent additional changes. Add a note to `REFACTOR_SPRINT.md` stating the sprint is pre-complete and proceed to card_04.\n\n### Hard Scope Limits (MUST NOT exceed)\n\n- Touch at most **3 files** (source + test files combined)\n- Change at most **200 lines** total (added + removed combined)\n\nIf you discover the change requires more, implement only the largest self-contained slice that stays within limits. Append the remainder to `IMPROVEMENT_BACKLOG.md` as a new P1 item.\n\n### Work\n\n**1. Read `REFACTOR_SPRINT.md`**\n\nNote the target file, branch name, acceptance criteria, and files to touch.\n\n**2. Create feature branch**\n\n```bash\ngit checkout main\ngit pull --rebase\ngit checkout -b <Branch from REFACTOR_SPRINT.md>\n```\n\n**3. Implement the improvement**\n\nPermitted change types (pick ONE that directly addresses the root cause):\n- Extract helper function to reduce max function length\n- Split large class into two classes (single-responsibility)\n- Add type annotations to all functions in the target file\n- Add unit tests for an untested module\n- Replace duplicated logic with a shared utility\n- Fix naming (rename to unabbreviated, convention-following names throughout one file)\n- Add module-level docstring and per-function docstrings\n\nDo not combine multiple change types in one sprint.\n\n**4. Add or update at least one test**\n\nThe test must:\n- be runnable with `python -m pytest` or `npm test`\n- exercise the specific code path that was changed\n- pass after your change\n\n**5. Run the full test suite**\n\n```bash\npython -m pytest -x -q\n# or\nnpm test --watchAll=false\n```\n\nIf a previously-passing test now fails, fix it before proceeding. Do not commit a broken test.\n\n**6. Update `REFACTOR_SPRINT.md`**\n\nAppend an Implementation Notes section:\n\n```text\n## Implementation Notes\n\n**Files changed**: list with line-change counts\n**Total lines changed**: N added, N removed\n**Tests added/modified**: test file and test name(s)\n**Out of scope (deferred)**: anything not implemented and why\n**Test result**: N tests passed\n```\n\n### Output Quality Rules\n\n- Do not stage or commit in this card — that is card_05's job.\n- If git is not initialised in the workspace, skip the branch step and work directly on the files. Note this in the sprint file.\n- Keep all changes on the feature branch until card_05 commits.\n\n![next]!"
+}

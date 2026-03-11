@@ -49,6 +49,15 @@ workflows/jobscrap_v2/v1/*
 # Claude Code local settings
 .claude/
 
+# Node.js
+frontend/node_modules/
+frontend/.next/
+frontend/.tsbuildinfo
+frontend/package-lock.json
+
+# Local State
+.carddealer_state.json
+
 # Launch scripts (may contain credentials — never commit these)
 run_orchestrator.ps1
 run_orchestrator.sh

@@ -1,0 +1,17 @@
+{
+  "id": "card_06",
+  "loop_id": "main",
+  "workflow": "sample_workflow",
+  "version": "v1",
+  "next_card": "card_01",
+  "metadata": {
+    "priority": "normal",
+    "max_time_seconds": 300,
+    "tags": [
+      "backlog",
+      "reprioritize",
+      "loop"
+    ]
+  },
+  "instruction": "## card_06 · Reprioritize — Refresh Backlog and Loop\n\n### Goal\nSynthesise what was learned this cycle into an updated improvement backlog, log the cycle outcome, and clean up sprint artefacts so the next cycle starts from a clean slate.\n\n### Loop Rule\nEven if the cycle produced no committed change (e.g. the sprint was pre-complete or the review blocked), still refresh the backlog and log the outcome. The loop must always advance.\n\n### Work\n\n**1. Read cycle artefacts**\n\n- `CHANGELOG.md` — last 5 entries (what has been improved recently)\n- `REVIEW_REPORT.md` — were there recurring failure patterns? Flag them.\n- `QUALITY_BASELINE.md` — remaining hotspots not yet addressed\n\n**2. Rewrite `IMPROVEMENT_BACKLOG.md`**\n\nMaximum 8 items, each assigned a priority tier:\n\n- **P0** — correctness bug, security issue, or broken test (must fix next cycle)\n- **P1** — zero test coverage, score > 7, or high coupling (address soon)\n- **P2** — naming clarity, missing type hints (improve when P0/P1 are clear)\n- **P3** — documentation, minor refactor, nice-to-have\n\n```markdown\n# Improvement Backlog\n\n**Updated**: YYYY-MM-DD\n\n| Priority | File | Issue | Est. effort |\n|----------|------|-------|-------------|\n| P0 | ... | ... | small/medium/large |\n| P1 | ... | ... | ... |\n```\n\nRemove items that were completed this cycle. Do not keep stale entries to fill the 8-item limit.\n\n**3. Append one-line entry to `ops_log.md`**\n\n```text\n[YYYY-MM-DD HH:MM] cycle N — improved <scope>, Δ health <+/-X.X>, next P0: <item>\n```\n\nIf there is no P0, use the top P1 item instead.\n\n**4. Clean up sprint artefacts**\n\nDelete these files to ensure a clean slate for the next cycle:\n- `REFACTOR_SPRINT.md`\n- `REVIEW_REPORT.md`\n\nVerify with `git status` — there should be no uncommitted changes.\n\n**5. Sanity check**\n\n- `QUALITY_BASELINE.md` exists and is up to date — if not, note it for card_01.\n- `IMPROVEMENT_BACKLOG.md` has at least 1 item.\n- `ops_log.md` has the new cycle entry.\n\n### Output Quality Rules\n\n- Do not carry forward stale P3 items if there are unaddressed P0 or P1 items.\n- The ops_log entry must include the health delta so progress is measurable.\n- The next cycle (card_01) will re-scan and update the baseline — do not pre-empt it.\n\n![next]!"
+}
