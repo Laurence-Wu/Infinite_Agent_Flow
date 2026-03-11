@@ -3,7 +3,7 @@
   "loop_id": "main",
   "workflow": "jobscrap_v2",
   "version": "v1",
-  "next_card": "fig",
+  "next_card": "starfruit",
   "metadata": {
     "priority": "normal",
     "tags": [
