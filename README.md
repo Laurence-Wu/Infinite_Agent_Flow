@@ -5,6 +5,43 @@ using **card-based instructions**. Each card is a discrete task step written to 
 markdown file. The engine monitors the file for a stop token, archives the result,
 and deals the next card — creating an **indefinite control loop** for autonomous work.
 
+## Launch Command
+
+Full command with ngrok tunnel and auto-restart on crash:
+
+```bash
+while true; do
+  python orchestrator.py \
+    --workspace ./output \
+    --workflow sample_workflow \
+    --version v1 \
+    --port 5000 \
+    --ngrok-auth 'user:password' \
+    --agent-id my_agent
+  echo "Orchestrator exited — restarting in 3s..."
+  sleep 3
+done
+```
+
+> Replace `user:password` with your ngrok basic-auth credentials.
+> The `while true` loop auto-restarts the orchestrator if it crashes or exits.
+> Remove `--ngrok-auth` to run without a public tunnel (local-only dashboard).
+
+To attach a **second agent** to the same dashboard (no new server):
+
+```bash
+while true; do
+  python orchestrator.py \
+    --workspace ./output2 \
+    --workflow sample_workflow \
+    --version v1 \
+    --attach http://localhost:5000 \
+    --agent-id agent_2
+  echo "Agent 2 exited — restarting in 3s..."
+  sleep 3
+done
+```
+
 ## Quick Start
 
 ```bash
