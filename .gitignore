@@ -72,6 +72,10 @@ run_orchestrator.bat
 *.local.ps1
 *.local.sh
 
+# User credentials config (copy from configure_user.sample.json)
+configure_user.json
+
 # OS
 .DS_Store
 Thumbs.db
+/README.md
