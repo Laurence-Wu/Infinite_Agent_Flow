@@ -1,8 +1,7 @@
 """
 Thread-safe StateManager shared between the Flask web layer and the Planner.
 
-All reads/writes are protected by threading.Lock() to prevent race
-conditions when the Planner archives a task while Flask is reading state.
+Supports multi-agent state tracking. Each agent is identified by a unique agent_id.
 """
 
 from __future__ import annotations
@@ -17,7 +16,8 @@ from typing import Any, Dict, List, Optional
 
 @dataclass
 class TaskSnapshot:
-    """Immutable snapshot of the engine state at a point in time."""
+    """Immutable snapshot of an agent's state at a point in time."""
+    agent_id: str = "default"
     current_card_id: Optional[str] = None
     current_workflow: Optional[str] = None
     current_version: Optional[str] = None
@@ -25,7 +25,7 @@ class TaskSnapshot:
     current_loop_id: str = "main"
     card_index: int = 0
     total_cards: int = 0
-    status: str = "idle"            # idle | running | completed | error
+    status: str = "idle"            # idle | running | completed | error | workflow_finished
     started_at: Optional[str] = None
     last_updated: Optional[str] = None
     history: List[Dict[str, Any]] = field(default_factory=list)
@@ -36,52 +36,77 @@ class TaskSnapshot:
 
 class StateManager:
     """
-    Central, thread-safe state container.
-
-    Flask reads via get_snapshot() → acquires lock, returns a *copy*.
-    Planner writes via set_*/update_* → acquires lock, mutates in-place.
+    Central, thread-safe state container. Handles multiple agents.
     """
 
     LOG_BUFFER_SIZE = 300
 
     def __init__(self):
         self._lock = threading.Lock()
-        self._state = TaskSnapshot()
-        self._state.engine_start_epoch = time.time()
+        # Maps agent_id -> TaskSnapshot
+        self._agents: Dict[str, TaskSnapshot] = {}
+        self._primary_agent_id: str = "default"
+        self._ensure_agent(self._primary_agent_id)
+
+    def _ensure_agent(self, agent_id: str) -> TaskSnapshot:
+        if agent_id not in self._agents:
+            s = TaskSnapshot(agent_id=agent_id)
+            s.engine_start_epoch = time.time()
+            self._agents[agent_id] = s
+        return self._agents[agent_id]
 
     # ------------------------------------------------------------------ #
-    #  Read (Flask side)
+    #  Read (Dashboard side)
     # ------------------------------------------------------------------ #
 
-    def get_snapshot(self) -> Dict[str, Any]:
-        """Return a dict copy of the current state (thread-safe)."""
+    def get_snapshot(self, agent_id: Optional[str] = None) -> Dict[str, Any]:
+        """Return a dict copy of an agent's state (default: primary agent)."""
+        aid = agent_id or self._primary_agent_id
         with self._lock:
-            total = self._state.total_cards
-            completed = len(self._state.history)
+            if aid not in self._agents:
+                return {"error": f"Agent '{aid}' not found"}
+            
+            s = self._agents[aid]
+            total = s.total_cards
+            completed = len(s.history)
             cycles = completed // total if total > 0 else 0
+            
             return {
-                "current_card_id": self._state.current_card_id,
-                "current_workflow": self._state.current_workflow,
-                "current_version": self._state.current_version,
-                "current_instruction": self._state.current_instruction,
-                "card_index": self._state.card_index,
-                "total_cards": self._state.total_cards,
-                "progress_pct": self._progress_pct(),
+                "agent_id": s.agent_id,
+                "current_card_id": s.current_card_id,
+                "current_workflow": s.current_workflow,
+                "current_version": s.current_version,
+                "current_instruction": s.current_instruction,
+                "card_index": s.card_index,
+                "total_cards": s.total_cards,
+                "progress_pct": self._progress_pct(aid),
                 "completed_total": completed,
                 "cycles_completed": cycles,
-                "current_loop_id": self._state.current_loop_id,
-                "status": self._state.status,
-                "started_at": self._state.started_at,
-                "last_updated": self._state.last_updated,
-                "history": copy.deepcopy(self._state.history),
-                "error": self._state.error,
-                "log_lines": list(self._state.log_lines[-self.LOG_BUFFER_SIZE:]),
-                "engine_start_epoch": self._state.engine_start_epoch,
-                "uptime_seconds": self._uptime_seconds(),
+                "current_loop_id": s.current_loop_id,
+                "status": s.status,
+                "started_at": s.started_at,
+                "last_updated": s.last_updated,
+                "history": copy.deepcopy(s.history),
+                "error": s.error,
+                "log_lines": list(s.log_lines[-self.LOG_BUFFER_SIZE:]),
+                "engine_start_epoch": s.engine_start_epoch,
+                "uptime_seconds": self._uptime_seconds(aid),
             }
 
+    def list_agents(self) -> List[str]:
+        """Return IDs of all agents currently reporting state."""
+        with self._lock:
+            return sorted(self._agents.keys())
+
+    def get_all_snapshots(self) -> Dict[str, Dict[str, Any]]:
+        """Return snapshots for all registered agents."""
+        with self._lock:
+            ids = list(self._agents.keys())
+        
+        return {aid: self.get_snapshot(aid) for aid in ids}
+
     # ------------------------------------------------------------------ #
-    #  Write (Planner / Dealer side)
+    #  Write (Worker / Planner side)
     # ------------------------------------------------------------------ #
 
     def set_current_card(
@@ -93,76 +118,149 @@ class StateManager:
         card_index: int,
         total_cards: int,
         loop_id: str = "main",
+        agent_id: Optional[str] = None,
     ) -> None:
-        """Update the active card (called by Dealer after writing task file)."""
+        aid = agent_id or self._primary_agent_id
         with self._lock:
-            self._state.current_card_id = card_id
-            self._state.current_workflow = workflow
-            self._state.current_version = version
-            self._state.current_instruction = instruction
-            self._state.current_loop_id = loop_id
-            self._state.card_index = card_index
-            self._state.total_cards = total_cards
-            self._state.status = "running"
-            self._state.started_at = datetime.now().isoformat()
-            self._state.last_updated = self._state.started_at
-            self._state.error = None
+            s = self._ensure_agent(aid)
+            s.current_card_id = card_id
+            s.current_workflow = workflow
+            s.current_version = version
+            s.current_instruction = instruction
+            s.current_loop_id = loop_id
+            s.card_index = card_index
+            s.total_cards = total_cards
+            s.status = "running"
+            s.started_at = datetime.now().isoformat()
+            s.last_updated = s.started_at
+            s.error = None
 
-    def push_log(self, line: str) -> None:
-        """Append a log line to the ring buffer (max LOG_BUFFER_SIZE lines)."""
+    def push_log(self, line: str, agent_id: Optional[str] = None) -> None:
+        aid = agent_id or self._primary_agent_id
         with self._lock:
-            self._state.log_lines.append(line)
-            if len(self._state.log_lines) > self.LOG_BUFFER_SIZE:
-                del self._state.log_lines[:-self.LOG_BUFFER_SIZE]
+            s = self._ensure_agent(aid)
+            s.log_lines.append(line)
+            if len(s.log_lines) > self.LOG_BUFFER_SIZE:
+                del s.log_lines[:-self.LOG_BUFFER_SIZE]
 
-    def mark_completed(self, summary: str) -> None:
-        """Archive the current card into history and reset active state."""
+    def mark_completed(self, summary: str, agent_id: Optional[str] = None) -> None:
+        aid = agent_id or self._primary_agent_id
         with self._lock:
+            s = self._ensure_agent(aid)
             now = datetime.now().isoformat()
-            self._state.history.append({
-                "card_id": self._state.current_card_id,
-                "workflow": self._state.current_workflow,
-                "version": self._state.current_version,
-                "loop_id": self._state.current_loop_id,
+            s.history.append({
+                "card_id": s.current_card_id,
+                "workflow": s.current_workflow,
+                "version": s.current_version,
+                "loop_id": s.current_loop_id,
                 "summary": summary,
                 "completed_at": now,
             })
-            self._state.status = "completed"
-            self._state.last_updated = now
+            s.status = "completed"
+            s.last_updated = now
 
-    def mark_error(self, error_msg: str) -> None:
-        """Flag the current card as errored (e.g. timeout)."""
+    def mark_error(self, error_msg: str, agent_id: Optional[str] = None) -> None:
+        aid = agent_id or self._primary_agent_id
         with self._lock:
-            self._state.status = "error"
-            self._state.error = error_msg
-            self._state.last_updated = datetime.now().isoformat()
+            s = self._ensure_agent(aid)
+            s.status = "error"
+            s.error = error_msg
+            s.last_updated = datetime.now().isoformat()
 
-    def set_idle(self) -> None:
-        """Reset to idle (no active card)."""
+    def set_workflow_finished(self, agent_id: Optional[str] = None) -> None:
+        aid = agent_id or self._primary_agent_id
         with self._lock:
-            self._state.current_card_id = None
-            self._state.current_instruction = None
-            self._state.status = "idle"
-            self._state.last_updated = datetime.now().isoformat()
+            s = self._ensure_agent(aid)
+            s.status = "workflow_finished"
+            s.last_updated = datetime.now().isoformat()
 
-    def set_workflow_finished(self) -> None:
-        """Mark the entire workflow as done."""
+    def update_from_snapshot(self, snapshot_data: Dict[str, Any]) -> None:
+        """Bulk update an agent state (used by /api/report-state)."""
+        aid = snapshot_data.get("agent_id", self._primary_agent_id)
         with self._lock:
-            self._state.status = "workflow_finished"
-            self._state.last_updated = datetime.now().isoformat()
+            s = self._ensure_agent(aid)
+            s.current_card_id = snapshot_data.get("current_card_id")
+            s.current_workflow = snapshot_data.get("current_workflow")
+            s.current_version = snapshot_data.get("current_version")
+            s.current_instruction = snapshot_data.get("current_instruction")
+            s.current_loop_id = snapshot_data.get("current_loop_id", "main")
+            s.card_index = snapshot_data.get("card_index", 0)
+            s.total_cards = snapshot_data.get("total_cards", 0)
+            s.status = snapshot_data.get("status", "idle")
+            s.started_at = snapshot_data.get("started_at")
+            s.last_updated = snapshot_data.get("last_updated")
+            s.history = snapshot_data.get("history", [])
+            s.error = snapshot_data.get("error")
+            s.log_lines = snapshot_data.get("log_lines", [])
+            s.engine_start_epoch = snapshot_data.get("engine_start_epoch")
 
     # ------------------------------------------------------------------ #
     #  Internal helpers
     # ------------------------------------------------------------------ #
 
-    def _uptime_seconds(self) -> float:
-        if self._state.engine_start_epoch is None:
+    def _uptime_seconds(self, agent_id: str) -> float:
+        s = self._agents.get(agent_id)
+        if not s or s.engine_start_epoch is None:
             return 0.0
-        return time.time() - self._state.engine_start_epoch
+        return time.time() - s.engine_start_epoch
 
-    def _progress_pct(self) -> float:
-        """Calculate progress as position within the current cycle (0-100%).
-        Uses card_index, not history length, so circular loops stay in range."""
-        if self._state.total_cards == 0:
+    def _progress_pct(self, agent_id: str) -> float:
+        s = self._agents.get(agent_id)
+        if not s or s.total_cards == 0:
             return 0.0
-        return round((self._state.card_index / self._state.total_cards) * 100, 1)
+        return round((s.card_index / s.total_cards) * 100, 1)
+
+
+class RemoteStateManager(StateManager):
+    """
+    A specialized StateManager that forwards all updates to a remote
+    dashboard server instead of (or in addition to) local state.
+    """
+
+    def __init__(self, server_url: str, agent_id: str):
+        super().__init__()
+        self._server_url = server_url.rstrip("/")
+        self._primary_agent_id = agent_id
+        self._ensure_agent(agent_id)
+        self._report_endpoint = f"{self._server_url}/api/report-state"
+
+    def _report_to_server(self):
+        """Send the current local snapshot to the remote server."""
+        import json
+        import urllib.request
+        
+        snapshot = self.get_snapshot(self._primary_agent_id)
+        data = json.dumps(snapshot).encode("utf-8")
+        
+        try:
+            req = urllib.request.Request(
+                self._report_endpoint,
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                pass
+        except Exception:
+            # Silently fail on network errors to avoid crashing the agent
+            pass
+
+    def set_current_card(self, *args, **kwargs) -> None:
+        super().set_current_card(*args, **kwargs)
+        self._report_to_server()
+
+    def push_log(self, *args, **kwargs) -> None:
+        super().push_log(*args, **kwargs)
+        self._report_to_server()
+
+    def mark_completed(self, *args, **kwargs) -> None:
+        super().mark_completed(*args, **kwargs)
+        self._report_to_server()
+
+    def mark_error(self, *args, **kwargs) -> None:
+        super().mark_error(*args, **kwargs)
+        self._report_to_server()
+
+    def set_workflow_finished(self, *args, **kwargs) -> None:
+        super().set_workflow_finished(*args, **kwargs)
+        self._report_to_server()

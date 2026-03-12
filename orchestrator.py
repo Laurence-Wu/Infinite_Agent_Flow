@@ -1,5 +1,5 @@
 """
-AgentOrchestrator — Main entry point for the Card Dealer engine.
+AgentOrchestrator \u2014 Main entry point for the Card Dealer engine.
 
 Ties together: EngineConfig, StateManager, CardsPicker, CardsDealer,
 CardsPlanner, and the Flask web dashboard.
@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -45,9 +46,10 @@ logger = logging.getLogger("orchestrator")
 class _StateLogHandler(logging.Handler):
     """Captures log records into the StateManager's ring buffer for the dashboard."""
 
-    def __init__(self, state: "StateManager"):
+    def __init__(self, state: "StateManager", agent_id: str | None = None):
         super().__init__()
         self._state = state
+        self._agent_id = agent_id
         self.setFormatter(logging.Formatter(
             "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
             datefmt="%H:%M:%S",
@@ -55,7 +57,7 @@ class _StateLogHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            self._state.push_log(self.format(record))
+            self._state.push_log(self.format(record), agent_id=self._agent_id)
         except Exception:
             pass
 
@@ -76,6 +78,8 @@ class AgentOrchestrator:
         version: str,
         workflows_path: str | None = None,
         flask_port: int = 5000,
+        attach_url: str | None = None,
+        agent_id: str | None = None,
     ):
         # ---- Config ----
         wf_path = workflows_path or str(PROJECT_ROOT / "workflows")
@@ -86,10 +90,18 @@ class AgentOrchestrator:
         )
 
         # ---- Shared state ----
-        self.state = StateManager()
+        self._attach_url = attach_url
+        if attach_url:
+            # If no agent_id provided, derive from workspace name
+            self._agent_id = agent_id or Path(workspace_path).resolve().name
+            from core.state_manager import RemoteStateManager
+            self.state = RemoteStateManager(attach_url, self._agent_id)
+        else:
+            self._agent_id = agent_id or "default"
+            self.state = StateManager()
 
-        # ---- Log capture → dashboard ring buffer ----
-        _log_handler = _StateLogHandler(self.state)
+        # ---- Log capture \u2192 dashboard ring buffer ----
+        _log_handler = _StateLogHandler(self.state, agent_id=self._agent_id)
         logging.getLogger().addHandler(_log_handler)
 
         # ---- Engine components ----
@@ -117,14 +129,18 @@ class AgentOrchestrator:
         Start the dashboard (background thread), then run the planner
         in the foreground (blocks until workflow completes).
         """
-        self._start_web()
+        if self._attach_url:
+            logger.info("Attached to existing dashboard at %s (skipping local Flask)", self._attach_url)
+        else:
+            self._start_web()
+            logger.info(
+                "Dashboard running at http://%s:%d",
+                self.config.flask_host,
+                self.config.flask_port,
+            )
+
         logger.info(
-            "Dashboard running at http://%s:%d",
-            self.config.flask_host,
-            self.config.flask_port,
-        )
-        logger.info(
-            "Starting workflow: %s/%s → workspace: %s",
+            "Starting workflow: %s/%s \u2192 workspace: %s",
             self._workflow_name,
             self._version,
             self.config.resolved_workspace,
@@ -143,11 +159,11 @@ class AgentOrchestrator:
 
     def deal_next(self) -> None:
         """Manually advance one card (useful for interactive/debug mode)."""
-        snapshot = self.state.get_snapshot()
+        snapshot = self.state.get_snapshot(self._agent_id)
         current_id = snapshot.get("current_card_id")
 
         if current_id is None:
-            # No card dealt yet — deal the first one
+            # No card dealt yet \u2014 deal the first one
             card = self.picker.get_first_card(self._workflow_name, self._version)
         else:
             card = self.picker.get_next_card(
@@ -190,31 +206,46 @@ class AgentOrchestrator:
             return
         if not (frontend_dir / "node_modules").exists():
             logger.warning(
-                "frontend/node_modules not found — run 'cd frontend && npm install' first. "
+                "frontend/node_modules not found \u2014 run 'cd frontend && npm install' first. "
                 "Skipping Next.js startup."
             )
             return
 
         npm = "npm.cmd" if sys.platform == "win32" else "npm"
+        
+        # Determine port for Next.js to proxy to
+        proxy_port = str(self.config.flask_port)
+        if self._attach_url:
+            try:
+                parsed = urllib.parse.urlparse(self._attach_url)
+                if parsed.port:
+                    proxy_port = str(parsed.port)
+            except Exception:
+                pass
+
+        env = os.environ.copy()
+        env["FLASK_PORT"] = proxy_port
+
         try:
             self._frontend_proc = subprocess.Popen(
                 [npm, "run", "dev"],
                 cwd=str(frontend_dir),
+                env=env,
                 # New process group so we can kill the whole tree cleanly
                 creationflags=(
                     subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
                 ),
             )
-            logger.info("Next.js frontend started at http://localhost:3000")
+            logger.info("Next.js frontend started at http://localhost:3000 (proxying to port %s)", proxy_port)
         except FileNotFoundError:
-            logger.warning("npm not found — Next.js frontend will not start.")
+            logger.warning("npm not found \u2014 Next.js frontend will not start.")
 
     def _stop_frontend(self) -> None:
         """Kill the Next.js process tree."""
         proc = self._frontend_proc
         if proc is None:
             return
-        logger.info("Stopping Next.js frontend (pid %d)…", proc.pid)
+        logger.info("Stopping Next.js frontend (pid %d)\u2026", proc.pid)
         try:
             if sys.platform == "win32":
                 subprocess.run(
@@ -244,10 +275,10 @@ class AgentOrchestrator:
                     subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
                 ),
             )
-            logger.info("ngrok tunnel starting… fetching public URL.")
+            logger.info("ngrok tunnel starting\u2026 fetching public URL.")
             threading.Thread(target=self._log_ngrok_url, daemon=True).start()
         except FileNotFoundError:
-            logger.warning("ngrok not found in PATH — tunnel will not start.")
+            logger.warning("ngrok not found in PATH \u2014 tunnel will not start.")
 
     def _log_ngrok_url(self) -> None:
         """Poll ngrok's local API until the tunnel URL is available, then log it."""
@@ -274,7 +305,7 @@ class AgentOrchestrator:
         proc = self._ngrok_proc
         if proc is None:
             return
-        logger.info("Stopping ngrok tunnel (pid %d)…", proc.pid)
+        logger.info("Stopping ngrok tunnel (pid %d)\u2026", proc.pid)
         try:
             if sys.platform == "win32":
                 subprocess.run(
@@ -295,7 +326,7 @@ class AgentOrchestrator:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="CardDealer — Agent Instruction Engine",
+        description="CardDealer \u2014 Agent Instruction Engine",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Example:\n"
@@ -330,6 +361,20 @@ def main():
         help="Flask dashboard port (default: 5000).",
     )
     parser.add_argument(
+        "--attach",
+        default=None,
+        metavar="URL",
+        help=(
+            "Connect to an existing dashboard at URL (e.g. http://localhost:5000). "
+            "Skips starting a local Flask server."
+        ),
+    )
+    parser.add_argument(
+        "--agent-id",
+        default=None,
+        help="Unique identifier for this agent instance (default: workspace name).",
+    )
+    parser.add_argument(
         "--ngrok-auth",
         default=None,
         metavar="USER:PASS",
@@ -347,6 +392,8 @@ def main():
         version=args.version,
         workflows_path=args.workflows_path,
         flask_port=args.port,
+        attach_url=args.attach,
+        agent_id=args.agent_id,
     )
     orchestrator._ngrok_auth = args.ngrok_auth
     orchestrator.run()
