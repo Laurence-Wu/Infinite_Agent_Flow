@@ -1,80 +1,61 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useAgents }        from '@/lib/hooks/useAgents'
-import { useSnapshot }      from '@/lib/hooks/useSnapshot'
-import { useTaskMarkdown }  from '@/lib/hooks/useTaskMarkdown'
-import { useWorkflows }     from '@/lib/hooks/useWorkflows'
-import { useWorkspaceScan } from '@/lib/hooks/useWorkspaceScan'
-import Header        from '@/components/Header'
-import AgentGrid     from '@/components/AgentGrid'
-import TaskPreview   from '@/components/TaskPreview'
-import WorkspaceScan from '@/components/WorkspaceScan'
-import WorkflowList  from '@/components/WorkflowList'
-import HistoryFeed   from '@/components/HistoryFeed'
+import { useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { useAgents } from '@/lib/hooks/useAgents'
+import AgentPanel from '@/components/AgentPanel'
 
-export default function Dashboard() {
-  const { agents }    = useAgents()
-  const { markdown }  = useTaskMarkdown()
-  const { workflows } = useWorkflows()
-  const { files }     = useWorkspaceScan()
+function DashboardContent() {
+  const { agents }     = useAgents()
+  const searchParams   = useSearchParams()
+  const router         = useRouter()
+  const agentIdFromUrl = searchParams.get('agent')
 
-  const [activeAgentId, setActiveAgentId] = useState<string | null>(null)
-
-  // Auto-select: prefer the first running agent, else first in list
+  // Auto-redirect to first running agent (or first in list) when no valid selection
   useEffect(() => {
     if (agents.length === 0) return
     const ids = agents.map(a => a.agent_id)
-    if (!activeAgentId || !ids.includes(activeAgentId)) {
-      const running = agents.find(a => a.status === 'running')
-      setActiveAgentId(running?.agent_id ?? agents[0].agent_id)
+    if (!agentIdFromUrl || !ids.includes(agentIdFromUrl)) {
+      const target = agents.find(a => a.status === 'running') ?? agents[0]
+      router.replace(`/?agent=${target.agent_id}`)
     }
-  }, [agents, activeAgentId])
+  }, [agents, agentIdFromUrl, router])
 
-  const activeAgent     = agents.find(a => a.agent_id === activeAgentId) ?? null
-  const isLocalSelected = activeAgentId === 'default'
+  const activeAgent = agents.find(a => a.agent_id === agentIdFromUrl) ?? null
 
-  // Fetch active agent snapshot for the bottom HistoryFeed
-  // SWR deduplicates: if the expanded AgentCard fetches the same URL, zero extra requests
-  const { snapshot: activeSnapshot } = useSnapshot(activeAgentId ?? undefined)
+  if (agents.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 p-12 text-center">
+        <p className="text-slate-500 italic text-sm">No agents running.</p>
+        <p className="text-slate-600 text-xs">
+          Start one with{' '}
+          <code className="font-mono text-accent-light bg-accent/10 px-1.5 py-0.5 rounded">
+            python orchestrator.py
+          </code>
+        </p>
+      </div>
+    )
+  }
 
+  if (!activeAgent) {
+    return (
+      <div className="flex items-center justify-center h-full text-slate-600 text-sm italic">
+        Selecting agent…
+      </div>
+    )
+  }
+
+  return <AgentPanel agent={activeAgent} />
+}
+
+export default function Dashboard() {
   return (
-    <div className="min-h-screen">
-      <Header agent={activeAgent} agentCount={agents.length} />
-
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-
-        {/* Primary: all agents as expandable cards */}
-        <AgentGrid
-          agents={agents}
-          selectedId={activeAgentId}
-          onSelect={setActiveAgentId}
-        />
-
-        {/* Secondary: local-workspace panels (only for the default local agent) */}
-        {isLocalSelected && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <TaskPreview markdown={markdown} />
-            </div>
-            <WorkspaceScan files={files} />
-          </div>
-        )}
-
-        {/* Bottom: workflow registry + completed history */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <WorkflowList workflows={workflows} agents={agents} />
-          <div className="lg:col-span-2">
-            <HistoryFeed history={activeSnapshot?.history ?? []} />
-          </div>
-        </div>
-      </main>
-
-      <footer className="border-t border-slate-700/30 mt-8">
-        <div className="max-w-7xl mx-auto px-6 py-3 text-center text-xs text-slate-600">
-          Infinite Agent Flow · Multi-Agent Dashboard · Flask API :5000
-        </div>
-      </footer>
-    </div>
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-full text-slate-600 text-sm italic">
+        Loading…
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   )
 }

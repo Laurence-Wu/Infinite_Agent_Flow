@@ -36,6 +36,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.agent_factory import build_agent_stack
 from core.agent_manager import AgentRegistry
 from core.hook_manager import HookManager
+from core.tmux_manager import TmuxManager
 from engine.scanner import WorkspaceScanner
 from web.app import create_app
 
@@ -84,6 +85,9 @@ class AgentOrchestrator:
         server_url: str | None = None,
         agent_id: str | None = None,
         ngrok_auth: str | None = None,
+        session_name: str | None = None,
+        auto_start: bool = False,
+        agent_command: str | None = None,
     ):
         wf_path = workflows_path or str(PROJECT_ROOT / "workflows")
         self._server_url = server_url
@@ -93,6 +97,7 @@ class AgentOrchestrator:
         self._frontend_proc: subprocess.Popen | None = None
         self._ngrok_proc: subprocess.Popen | None = None
         self._ngrok_auth: str | None = ngrok_auth
+        self._auto_start = auto_start
 
         # Derive agent_id: explicit > workspace name > "default"
         derived_id = agent_id or (
@@ -118,6 +123,19 @@ class AgentOrchestrator:
 
         self.scanner = WorkspaceScanner(self._stack.config)
 
+        # Build TmuxManager — command + wait can be overridden via CLI flags
+        cfg = self._stack.config
+        ws = cfg.resolved_workspace
+        cmd = agent_command or cfg.agent_command
+        sname = session_name or f"{cmd.split()[0]}_{ws.name}"
+        self._tmux = TmuxManager(
+            workspace=ws,
+            session_name=sname,
+            loop_file=ws / "AGENT_LOOP.md",
+            agent_command=cmd,
+            startup_wait=cfg.agent_startup_wait,
+        )
+
         # Dashboard mode only: create registry and Flask app
         if server_url is None:
             self._registry = AgentRegistry(self._hook_manager, wf_path)
@@ -129,6 +147,7 @@ class AgentOrchestrator:
                 scanner=self.scanner,
                 registry=self._registry,
                 archive=self._stack.archive,
+                tmux_manager=self._tmux,
             )
         else:
             self._registry = None
@@ -155,6 +174,17 @@ class AgentOrchestrator:
             self._start_frontend()
             self._start_ngrok()
 
+        # Auto-start the AI agent tmux session if requested
+        if self._auto_start:
+            logger.info(
+                "Auto-starting tmux session '%s' with command '%s'",
+                self._tmux._session, self._tmux._agent_command,
+            )
+            threading.Thread(target=self._tmux.start, daemon=True, name="tmux-autostart").start()
+
+        # Background health monitor
+        threading.Thread(target=self._monitor_health, daemon=True, name="health-monitor").start()
+
         logger.info(
             "Starting workflow: %s/%s → workspace: %s",
             self._workflow_name, self._version,
@@ -174,6 +204,26 @@ class AgentOrchestrator:
     # ------------------------------------------------------------------ #
     #  Internal
     # ------------------------------------------------------------------ #
+
+    def _monitor_health(self) -> None:
+        """Periodically checks whether the tmux session is alive and logs if it dies."""
+        CHECK_INTERVAL = 30  # seconds
+        was_alive: bool | None = None
+        while True:
+            time.sleep(CHECK_INTERVAL)
+            try:
+                alive = self._tmux.is_alive()
+                if was_alive is True and not alive:
+                    logger.warning(
+                        "tmux session '%s' is dead — use the dashboard or "
+                        "scripts/restart_agent.sh to recover",
+                        self._tmux._session,
+                    )
+                elif was_alive is False and alive:
+                    logger.info("tmux session '%s' is now alive", self._tmux._session)
+                was_alive = alive
+            except Exception:
+                pass
 
     def _start_web(self) -> None:
         thread = threading.Thread(
@@ -309,6 +359,12 @@ def main():
         help="Unique identifier for this agent (default: workspace directory name).")
     parser.add_argument("--ngrok-auth", default=None, metavar="USER:PASS",
         help="Start an ngrok tunnel to the frontend (port 3000) with HTTP basic auth.")
+    parser.add_argument("--session-name", default=None, metavar="NAME",
+        help="tmux session name (default: <agent_command>_<workspace>).")
+    parser.add_argument("--agent-command", default=None, metavar="CMD",
+        help="AI agent CLI command to run in the tmux session (default: from config, usually 'gemini').")
+    parser.add_argument("--auto-start", action="store_true",
+        help="Automatically start the tmux agent session when the orchestrator launches.")
 
     args = parser.parse_args()
 
@@ -321,6 +377,9 @@ def main():
         server_url=args.server,
         agent_id=args.agent_id,
         ngrok_auth=args.ngrok_auth,
+        session_name=args.session_name,
+        auto_start=args.auto_start,
+        agent_command=args.agent_command,
     )
     orchestrator.run()
 

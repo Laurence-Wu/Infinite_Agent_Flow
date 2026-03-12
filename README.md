@@ -1,27 +1,23 @@
 # CardDealer
 
-Card-driven orchestration engine for autonomous AI agent loops. Workflows are sequences of instruction cards; the engine deals tasks, watches for completion signals, archives results, and advances automatically.
+Card-driven orchestration engine for autonomous AI agent loops.
 
 ---
 
-## What It Does
-
-- Deals structured task cards to an AI agent's workspace (`current_task.md`)
-- Watches for the completion token (`![next]!`) and advances the workflow
-- Archives every completed card with logs, summary, and metadata
-- Supports conditional branching (`![next:label]!`) between cards
-- Runs multiple agents in parallel — all visible on one dashboard
-
----
-
-## Quick Start
+## Install
 
 ```bash
 git clone <repo> && cd CardDealer
 pip install -r requirements.txt
 cd frontend && npm install && cd ..
+```
 
-# Start the engine (owns the dashboard at localhost:3000)
+---
+
+## Start
+
+```bash
+# Dashboard owner (Flask :5000 + Next.js :3000)
 python orchestrator.py --workspace ./workspace --workflow sample_workflow --version v1
 
 # Attach a second agent to the same dashboard
@@ -31,147 +27,133 @@ python orchestrator.py --workspace ./workspace2 --workflow jobscrap_v2 --version
 
 ---
 
-## Architecture
-
-```
-orchestrator.py
-  └─ AgentRegistry
-       └─ AgentStack (per agent)
-            ├─ CardsPicker   — selects next card from workflow JSON
-            ├─ CardsDealer   — writes card instruction to current_task.md
-            ├─ CardsPlanner  — watches file, detects ![next]!, advances workflow
-            ├─ StateManager  — thread-safe state (local or RemoteStateManager)
-            └─ ArchiveManager — saves completed cards to archive/
-
-Flask API (:5000)  ←→  Next.js Dashboard (:3000)
-```
-
-**Key directories:**
-
-| Path | Purpose |
-| ---- | ------- |
-| `workflows/<name>/<version>/` | Read-only card JSON files |
-| `workspace/current_task.md` | Active task (writable by agent) |
-| `workspace/archive/<loop>/<card>_<ts>/` | Completed task archive |
-| `core/` | Base classes, config, state, decorators |
-| `engine/` | Picker, dealer, planner, scanner |
-| `web/` | Flask routes and app factory |
-| `frontend/` | Next.js dashboard |
-
----
-
-## Workflow Format
-
-Each card is a JSON file:
-
-```json
-{
-  "id": "card_01",
-  "title": "Analyse codebase",
-  "instructions": "Scan all Python files and produce a quality report.",
-  "next_card": "card_02",
-  "branches": {
-    "needs_rework": "card_01",
-    "approved":     "card_02"
-  }
-}
-```
-
-Cards live at `workflows/<name>/<version>/<id>.json`. They are **never modified** by the engine.
-
----
-
-## Completion Token
-
-The agent writes to `current_task.md` and ends with a token on its own line:
-
-```
-![next]!            # advance to next_card (default)
-![next:approved]!   # follow the "approved" branch
-![next:needs_rework]!
-```
-
-The planner detects the token, archives the card, and deals the next one.
-
----
-
-## Multi-Agent
-
-The first `orchestrator.py` owns the Flask + Next.js dashboard. Additional agents attach with `--server`:
+## Start with AI Agent (tmux)
 
 ```bash
-python orchestrator.py --workspace ./ws2 --workflow my_flow --version v1 \
-  --server http://localhost:5000 --agent-id agent_1
+# Auto-start the agent session when the orchestrator launches
+python orchestrator.py --workspace ./workspace --workflow sample_workflow --version v1 \
+  --auto-start
+
+# Use a different agent (default: gemini)
+python orchestrator.py --workspace ./workspace --workflow sample_workflow --version v1 \
+  --agent-command "claude" --auto-start
+
+# Custom session name
+python orchestrator.py --workspace ./workspace --workflow sample_workflow --version v1 \
+  --session-name my_session --auto-start
 ```
 
-All agents appear on the same dashboard. No port conflicts.
-
-### Expose your dashboard over the internet with ngrok
-
-Use `--ngrok-auth USER:PASS` to start an ngrok tunnel to the Next.js dashboard (port 3000) protected with HTTP Basic Auth. The Flask API is reachable through the same URL because Next.js proxies all `/api/*` calls to Flask.
-
-**1. Start the dashboard owner with ngrok auth:**
+Or use the shell scripts directly:
 
 ```bash
-python orchestrator.py \
-  --workspace ./workspace \
-  --workflow jobscrap_v2 \
-  --ngrok-auth "youruser:yourpassword"
+# Linux / macOS / WSL
+bash scripts/start_agent.sh ./workspace my_session gemini 20
+bash scripts/stop_agent.sh my_session
+bash scripts/restart_agent.sh ./workspace my_session gemini 20
+
+# Windows (requires WSL2 + tmux)
+scripts\start_agent.bat .\workspace my_session
+scripts\stop_agent.bat my_session
 ```
 
-The engine prints the public URL to the log once the tunnel is ready:
+Attach to the running session:
+
+```bash
+tmux attach -t my_session
+```
+
+The session tracker on the dashboard (`localhost:3000`) shows live pane output and Start / Stop / Restart controls.
+
+---
+
+## Expose over ngrok
+
+```bash
+# Install ngrok, then authenticate once
+ngrok config add-authtoken <your-token>
+
+# Start with ngrok tunnel (basic-auth protected)
+python orchestrator.py --workspace ./workspace --workflow sample_workflow --version v1 \
+  --ngrok-auth "user:password"
+```
+
+The log prints the public URL:
 
 ```
 [INFO] ngrok public URL: https://abc123.ngrok-free.app  (basic-auth protected)
 ```
 
-**2. Open the dashboard in your browser:**
-
-Navigate to `https://abc123.ngrok-free.app` — the browser will prompt for the username and password you set.
-
-**3. Attach a remote agent (from another machine or terminal):**
-
-Embed the credentials in the `--server` URL. The engine parses them out, strips them from the URL, and sends them as an `Authorization: Basic` header on every state report:
+Attach a remote agent through ngrok:
 
 ```bash
-python orchestrator.py \
-  --workspace ./workspace2 \
-  --workflow sample_workflow \
+python orchestrator.py --workspace ./workspace2 --workflow jobscrap_v2 --version v1 \
   --agent-id agent_remote \
-  --server "https://youruser:yourpassword@abc123.ngrok-free.app"
+  --server "https://user:password@abc123.ngrok-free.app"
 ```
 
-The remote agent appears on the shared dashboard alongside local agents.
+---
 
-> **Prerequisites:** [Install ngrok](https://ngrok.com/download) and authenticate once with `ngrok config add-authtoken <your-token>`. The `--basic-auth` flag works on all ngrok plans.
+## Workflow card format
+
+```json
+{
+  "id": "card_01",
+  "title": "Task title",
+  "instructions": "What the agent must do.",
+  "next_card": "card_02",
+  "branches": {
+    "retry": "card_01",
+    "done":  "card_02"
+  }
+}
+```
+
+Cards live at `workflows/<name>/<version>/<id>.json`. Never modified by the engine.
 
 ---
 
-## API Cheatsheet
+## Completion tokens
 
-| Method | Path | Description |
-| ------ | ---- | ----------- |
-| GET | `/api/agents` | List all agents |
-| GET | `/api/agent/<id>` | Full snapshot for one agent |
-| POST | `/api/agent/<id>/pause` | Pause agent |
-| POST | `/api/agent/<id>/resume` | Resume agent |
-| POST | `/api/agent/<id>/stop` | Stop agent |
-| POST | `/api/agent/<id>/deal` | Force-deal next card |
-| POST | `/api/agents` | Start new agent `{workspace, workflow, version}` |
-| GET | `/api/status?agent_id=<id>` | Snapshot (backward compat) |
-| GET | `/api/archive` | List archive entries |
-| GET | `/api/archive/<loop>/<folder>` | Single archive entry |
+The agent appends to `current_task.md`:
+
+```
+## Summary
+One sentence summary.
+
+![next]!              # advance to next_card
+![next:done]!         # follow the "done" branch
+![next:retry]!        # follow the "retry" branch
+```
 
 ---
 
-## Configuration
+## API
 
-`EngineConfig` fields (all have defaults):
+| Method | Path | Body |
+| ------ | ---- | ---- |
+| GET | `/api/agents` | — |
+| GET | `/api/agent/<id>` | — |
+| POST | `/api/agent/<id>/pause` | — |
+| POST | `/api/agent/<id>/resume` | — |
+| POST | `/api/agent/<id>/stop` | — |
+| POST | `/api/agent/<id>/deal` | — |
+| POST | `/api/agents` | `{workspace, workflow, version}` |
+| GET | `/api/archive` | — |
+| GET | `/api/session` | — |
+| POST | `/api/session/start` | — |
+| POST | `/api/session/stop` | — |
+| POST | `/api/session/restart` | — |
 
-| Field | Default | Description |
-| ----- | ------- | ----------- |
-| `workspace_path` | `./workspace` | Root dir for task file and archive |
-| `workflows_path` | `./workflows` | Root dir for workflow JSON files |
-| `archive_dir` | `archive` | Subdirectory name inside workspace |
-| `current_task_filename` | `current_task.md` | Active task file name |
-| `flask_host` | `127.0.0.1` | Flask bind host |
+---
+
+## Config (`EngineConfig`)
+
+| Field | Default |
+| ----- | ------- |
+| `workspace_path` | `./workspace` |
+| `workflows_path` | `./workflows` |
+| `archive_dir` | `archive` |
+| `current_task_filename` | `current_task.md` |
+| `flask_host` | `127.0.0.1` |
+| `agent_command` | `gemini` |
+| `agent_startup_wait` | `20` |

@@ -21,18 +21,20 @@ from web.routes import DashboardRouter
 
 
 def create_app(
-    config:   EngineConfig,
-    state:    StateManager,
-    picker:   CardsPicker,
-    scanner:  WorkspaceScanner,
-    registry: Optional[Any] = None,   # core.agent_manager.AgentRegistry
-    archive:  Optional[Any] = None,   # core.archive.ArchiveManager
+    config:       EngineConfig,
+    state:        StateManager,
+    picker:       CardsPicker,
+    scanner:      WorkspaceScanner,
+    registry:     Optional[Any] = None,   # core.agent_manager.AgentRegistry
+    archive:      Optional[Any] = None,   # core.archive.ArchiveManager
+    tmux_manager: Optional[Any] = None,   # core.tmux_manager.TmuxManager
 ) -> Flask:
     """
     Factory function — creates and configures the Flask app.
 
     Pass ``registry`` to enable agent-control REST endpoints.
     Pass ``archive`` to enable archive browsing endpoints.
+    Pass ``tmux_manager`` to enable /api/session/* endpoints.
     """
     app = Flask(
         __name__,
@@ -40,5 +42,6 @@ def create_app(
         static_folder=str(Path(__file__).parent / "static"),
     )
     DashboardRouter(config, state, picker, scanner,
-                    registry=registry, archive=archive).register(app)
+                    registry=registry, archive=archive,
+                    tmux_manager=tmux_manager).register(app)
     return app

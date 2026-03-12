@@ -50,10 +50,38 @@ export function useEngineActions() {
     return response.json()
   }, [])
 
+  /** Stop then respawn an agent with the same workspace/workflow/version. */
+  const restartAgent = useCallback(async (agentId = 'default') => {
+    const response = await fetch(`/api/agent/${agentId}/restart`, { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to restart agent')
+    return response.json()
+  }, [])
+
   /** Refresh the workspace scan to detect new files. */
   const refreshWorkspace = useCallback(async () => {
     const response = await fetch('/api/workspace-scan')
     if (!response.ok) throw new Error('Failed to refresh workspace')
+    return response.json()
+  }, [])
+
+  /** Start the tmux agent session (non-blocking — returns immediately). */
+  const startSession = useCallback(async () => {
+    const response = await fetch('/api/session/start', { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to start session')
+    return response.json()
+  }, [])
+
+  /** Stop the tmux agent session. */
+  const stopSession = useCallback(async () => {
+    const response = await fetch('/api/session/stop', { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to stop session')
+    return response.json()
+  }, [])
+
+  /** Restart the tmux agent session (non-blocking). */
+  const restartSession = useCallback(async () => {
+    const response = await fetch('/api/session/restart', { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to restart session')
     return response.json()
   }, [])
 
@@ -63,7 +91,11 @@ export function useEngineActions() {
     pauseWorkflow,
     resumeWorkflow,
     stopWorkflow,
+    restartAgent,
     startAgent,
     refreshWorkspace,
+    startSession,
+    stopSession,
+    restartSession,
   }
 }

@@ -25,6 +25,9 @@ class EngineConfig:
     archive_dir: str = "archive"
     current_task_filename: str = "current_task.md"
     flask_host: str = "127.0.0.1"
+    # Agent session management
+    agent_command: str = "gemini"   # CLI command to launch the AI agent (e.g. "claude", "aider")
+    agent_startup_wait: int = 20    # seconds to wait for agent to start before sending AGENT_LOOP.md
 
     # ----- derived paths (set in __post_init__) -----
     _workspace: Path = field(init=False, repr=False)

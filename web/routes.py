@@ -13,12 +13,20 @@ RESTful agent-control routes (require AgentRegistry):
     POST /api/agent/<id>/resume         — resume agent
     POST /api/agent/<id>/stop           — stop agent
     POST /api/agent/<id>/deal           — deal next card
+    POST /api/agent/<id>/restart        — stop then respawn agent with same config
+    GET  /api/agent/<id>/workspace-scan — scan this agent's workspace directory
     POST /api/agents                    — start new agent (workspace/workflow/version)
     POST /api/report-state              — peer state report from remote agents
 
 Archive routes (require ArchiveManager):
     GET  /api/archive                   — list recent archive entries
     GET  /api/archive/<loop>/<folder>   — single archive entry detail
+
+Session routes (require TmuxManager):
+    GET  /api/session                   — tmux session status + pane output
+    POST /api/session/start             — start tmux session (non-blocking)
+    POST /api/session/stop              — stop tmux session
+    POST /api/session/restart           — restart tmux session (non-blocking)
 
 Backward-compat aliases (kept for existing UI code):
     GET  /api/status                    — snapshot for queried agent_id
@@ -31,6 +39,7 @@ Backward-compat aliases (kept for existing UI code):
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Any, Optional
 
@@ -47,24 +56,26 @@ class DashboardRouter:
     Encapsulates every HTTP route handler.
 
     Dependencies are injected once at construction so each method
-    has access to config/state/picker/scanner/registry/archive without closures.
+    has access to config/state/picker/scanner/registry/archive/tmux without closures.
     """
 
     def __init__(
         self,
-        config:   EngineConfig,
-        state:    StateManager,
-        picker:   CardsPicker,
-        scanner:  WorkspaceScanner,
-        registry: Optional[Any] = None,   # AgentRegistry | None
-        archive:  Optional[Any] = None,   # ArchiveManager | None
+        config:       EngineConfig,
+        state:        StateManager,
+        picker:       CardsPicker,
+        scanner:      WorkspaceScanner,
+        registry:     Optional[Any] = None,   # AgentRegistry | None
+        archive:      Optional[Any] = None,   # ArchiveManager | None
+        tmux_manager: Optional[Any] = None,   # TmuxManager | None
     ) -> None:
-        self.config   = config
-        self.state    = state
-        self.picker   = picker
-        self.scanner  = scanner
-        self.registry = registry
-        self.archive  = archive
+        self.config       = config
+        self.state        = state
+        self.picker       = picker
+        self.scanner      = scanner
+        self.registry     = registry
+        self.archive      = archive
+        self.tmux_manager = tmux_manager
 
     def register(self, app: Flask) -> None:
         """Bind all routes to the Flask application."""
@@ -79,6 +90,8 @@ class DashboardRouter:
         app.add_url_rule("/api/agent/<agent_id>/resume",  "api_agent_resume",  self.api_agent_resume,  methods=["POST"])
         app.add_url_rule("/api/agent/<agent_id>/stop",    "api_agent_stop",    self.api_agent_stop,    methods=["POST"])
         app.add_url_rule("/api/agent/<agent_id>/deal",    "api_agent_deal",    self.api_agent_deal,    methods=["POST"])
+        app.add_url_rule("/api/agent/<agent_id>/restart",  "api_agent_restart",  self.api_agent_restart,  methods=["POST"])
+        app.add_url_rule("/api/agent/<agent_id>/workspace-scan", "api_agent_workspace_scan", self.api_agent_workspace_scan)
 
         # ── Peer state reporting ──────────────────────────────────────────
         app.add_url_rule("/api/report-state", "api_report_state", self.api_report_state, methods=["POST"])
@@ -101,6 +114,12 @@ class DashboardRouter:
         app.add_url_rule("/api/workflow/stop",   "compat_stop",   self.compat_stop,   methods=["POST"])
         app.add_url_rule("/api/deal-next",       "compat_deal",   self.compat_deal,   methods=["POST"])
         app.add_url_rule("/api/agent/start",     "compat_start",  self.api_agents_start, methods=["POST"])
+
+        # ── Session (tmux) ───────────────────────────────────────────────
+        app.add_url_rule("/api/session",         "api_session",         self.api_session)
+        app.add_url_rule("/api/session/start",   "api_session_start",   self.api_session_start,   methods=["POST"])
+        app.add_url_rule("/api/session/stop",    "api_session_stop",    self.api_session_stop,    methods=["POST"])
+        app.add_url_rule("/api/session/restart", "api_session_restart", self.api_session_restart, methods=["POST"])
 
         # ── HTMX partials ─────────────────────────────────────────────────
         app.add_url_rule("/partials/status",   "partial_status",   self.partial_status)
@@ -184,6 +203,32 @@ class DashboardRouter:
         result = self.registry.deal_next(agent_id)
         code = 200 if result.get("ok") else 500
         return jsonify(result), code
+
+    def api_agent_restart(self, agent_id: str):
+        """POST /api/agent/<id>/restart — stop current run and start a fresh one."""
+        if self.registry is None:
+            return jsonify({"error": "AgentRegistry not available"}), 503
+        # Capture config before stopping
+        agents = self.registry.list_agents()
+        entry = next((a for a in agents if a["agent_id"] == agent_id), None)
+        if entry is None:
+            return jsonify({"error": f"Agent '{agent_id}' not found"}), 404
+        self.registry.stop_agent(agent_id)
+        new_id = self.registry.start_agent(
+            entry["workspace"], entry["workflow"], entry["version"]
+        )
+        return jsonify({"ok": True, "agent_id": new_id})
+
+    def api_agent_workspace_scan(self, agent_id: str):
+        """GET /api/agent/<id>/workspace-scan — scan this agent's workspace directory."""
+        if not self.registry:
+            return jsonify({"files": []})
+        snap = self.registry.get_agent_snapshot(agent_id)
+        ws_path = (snap or {}).get("workspace", "")
+        if not ws_path:
+            return jsonify({"files": []})
+        cfg = EngineConfig(workspace_path=ws_path)
+        return jsonify({"files": WorkspaceScanner(cfg).scan()})
 
     # ------------------------------------------------------------------ #
     #  Peer state reporting
@@ -285,6 +330,40 @@ class DashboardRouter:
             code = 200 if result.get("ok") else 500
             return jsonify(result), code
         return jsonify({"error": "AgentRegistry not available"}), 503
+
+    # ------------------------------------------------------------------ #
+    #  Session (tmux) endpoints
+    # ------------------------------------------------------------------ #
+
+    def _no_tmux(self):
+        return jsonify({"ok": False, "error": "TmuxManager not configured"}), 503
+
+    def api_session(self):
+        """GET /api/session — tmux session status + pane output."""
+        if not self.tmux_manager:
+            return self._no_tmux()
+        return jsonify(self.tmux_manager.status())
+
+    def api_session_start(self):
+        """POST /api/session/start — start tmux session (non-blocking; returns immediately)."""
+        if not self.tmux_manager:
+            return self._no_tmux()
+        threading.Thread(target=self.tmux_manager.start, daemon=True, name="session-start").start()
+        return jsonify({"ok": True, "starting": True, **self.tmux_manager.status()})
+
+    def api_session_stop(self):
+        """POST /api/session/stop — stop tmux session."""
+        if not self.tmux_manager:
+            return self._no_tmux()
+        self.tmux_manager.stop()
+        return jsonify({"ok": True, **self.tmux_manager.status()})
+
+    def api_session_restart(self):
+        """POST /api/session/restart — stop then start (non-blocking)."""
+        if not self.tmux_manager:
+            return self._no_tmux()
+        threading.Thread(target=self.tmux_manager.restart, daemon=True, name="session-restart").start()
+        return jsonify({"ok": True, "starting": True, **self.tmux_manager.status()})
 
     # ------------------------------------------------------------------ #
     #  HTMX partial handlers

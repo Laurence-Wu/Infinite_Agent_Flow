@@ -66,3 +66,12 @@ export interface WorkspaceScanEntry {
 export interface WorkspaceScan {
   files: WorkspaceScanEntry[]
 }
+
+export interface SessionStatus {
+  alive: boolean
+  starting: boolean
+  session_name: string
+  agent_command: string
+  workspace: string
+  pane_lines: string[]
+}
