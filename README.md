@@ -106,6 +106,45 @@ python orchestrator.py --workspace ./ws2 --workflow my_flow --version v1 \
 
 All agents appear on the same dashboard. No port conflicts.
 
+### Expose your dashboard over the internet with ngrok
+
+Use `--ngrok-auth USER:PASS` to start an ngrok tunnel to the Next.js dashboard (port 3000) protected with HTTP Basic Auth. The Flask API is reachable through the same URL because Next.js proxies all `/api/*` calls to Flask.
+
+**1. Start the dashboard owner with ngrok auth:**
+
+```bash
+python orchestrator.py \
+  --workspace ./workspace \
+  --workflow jobscrap_v2 \
+  --ngrok-auth "youruser:yourpassword"
+```
+
+The engine prints the public URL to the log once the tunnel is ready:
+
+```
+[INFO] ngrok public URL: https://abc123.ngrok-free.app  (basic-auth protected)
+```
+
+**2. Open the dashboard in your browser:**
+
+Navigate to `https://abc123.ngrok-free.app` — the browser will prompt for the username and password you set.
+
+**3. Attach a remote agent (from another machine or terminal):**
+
+Embed the credentials in the `--server` URL. The engine parses them out, strips them from the URL, and sends them as an `Authorization: Basic` header on every state report:
+
+```bash
+python orchestrator.py \
+  --workspace ./workspace2 \
+  --workflow sample_workflow \
+  --agent-id agent_remote \
+  --server "https://youruser:yourpassword@abc123.ngrok-free.app"
+```
+
+The remote agent appears on the shared dashboard alongside local agents.
+
+> **Prerequisites:** [Install ngrok](https://ngrok.com/download) and authenticate once with `ngrok config add-authtoken <your-token>`. The `--basic-auth` flag works on all ngrok plans.
+
 ---
 
 ## API Cheatsheet

@@ -83,6 +83,7 @@ class AgentOrchestrator:
         flask_port: int = 5000,
         server_url: str | None = None,
         agent_id: str | None = None,
+        ngrok_auth: str | None = None,
     ):
         wf_path = workflows_path or str(PROJECT_ROOT / "workflows")
         self._server_url = server_url
@@ -91,7 +92,7 @@ class AgentOrchestrator:
         self._version = version
         self._frontend_proc: subprocess.Popen | None = None
         self._ngrok_proc: subprocess.Popen | None = None
-        self._ngrok_auth: str | None = None
+        self._ngrok_auth: str | None = ngrok_auth
 
         # Derive agent_id: explicit > workspace name > "default"
         derived_id = agent_id or (
@@ -319,8 +320,8 @@ def main():
         flask_port=args.port,
         server_url=args.server,
         agent_id=args.agent_id,
+        ngrok_auth=args.ngrok_auth,
     )
-    orchestrator._ngrok_auth = args.ngrok_auth
     orchestrator.run()
 
 

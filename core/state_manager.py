@@ -13,10 +13,12 @@ A subclass that forwards every state mutation to a remote dashboard via
 
 from __future__ import annotations
 
+import base64
 import copy
 import json
 import threading
 import time
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -298,7 +300,23 @@ class RemoteStateManager(StateManager):
 
     def __init__(self, server_url: str, agent_id: str = "default"):
         super().__init__(agent_id=agent_id)
-        self._server_url = server_url.rstrip("/")
+
+        # Extract Basic-Auth credentials embedded in the URL
+        # e.g. https://user:pass@abc123.ngrok-free.app
+        parsed = urllib.parse.urlparse(server_url)
+        if parsed.username:
+            creds = f"{parsed.username}:{parsed.password or ''}"
+            self._auth_header: Optional[str] = (
+                "Basic " + base64.b64encode(creds.encode()).decode()
+            )
+            # Rebuild URL without credentials
+            netloc = parsed.hostname + (f":{parsed.port}" if parsed.port else "")
+            clean = parsed._replace(netloc=netloc)
+            self._server_url = urllib.parse.urlunparse(clean).rstrip("/")
+        else:
+            self._auth_header = None
+            self._server_url = server_url.rstrip("/")
+
         self._report_endpoint = f"{self._server_url}/api/report-state"
 
     # ------------------------------------------------------------------ #
@@ -339,10 +357,13 @@ class RemoteStateManager(StateManager):
             snap = self.get_snapshot(self._primary_agent_id)
             snap["agent_id"] = self._primary_agent_id
             data = json.dumps(snap, default=str).encode("utf-8")
+            headers: Dict[str, str] = {"Content-Type": "application/json"}
+            if self._auth_header:
+                headers["Authorization"] = self._auth_header
             req = urllib.request.Request(
                 self._report_endpoint,
                 data=data,
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=3):
