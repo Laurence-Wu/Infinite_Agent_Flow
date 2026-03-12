@@ -1,101 +1,61 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useSnapshot }      from '@/lib/hooks/useSnapshot'
-import { useAgents }        from '@/lib/hooks/useAgents'
-import { useTaskMarkdown }  from '@/lib/hooks/useTaskMarkdown'
-import { useWorkflows }     from '@/lib/hooks/useWorkflows'
-import { useWorkspaceScan } from '@/lib/hooks/useWorkspaceScan'
-import Header        from '@/components/Header'
-import StatsRow      from '@/components/StatsRow'
-import ProgressPanel from '@/components/ProgressPanel'
-import TaskPreview   from '@/components/TaskPreview'
-import LogTerminal   from '@/components/LogTerminal'
-import HistoryFeed   from '@/components/HistoryFeed'
-import WorkflowList  from '@/components/WorkflowList'
-import WorkspaceScan from '@/components/WorkspaceScan'
-import AgentSwitcher from '@/components/AgentSwitcher'
+import { useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { useAgents } from '@/lib/hooks/useAgents'
+import AgentPanel from '@/components/AgentPanel'
 
-export default function Dashboard() {
-  const [activeAgentId, setActiveAgentId] = useState<string>('default')
-  const { agents } = useAgents()
-  
-  // Update activeAgentId if current one disappears, or if default is missing but others exist
+function DashboardContent() {
+  const { agents }     = useAgents()
+  const searchParams   = useSearchParams()
+  const router         = useRouter()
+  const agentIdFromUrl = searchParams.get('agent')
+
+  // Auto-redirect to first running agent (or first in list) when no valid selection
   useEffect(() => {
-    const ids = Object.keys(agents)
-    if (ids.length > 0 && !ids.includes(activeAgentId)) {
-      setActiveAgentId(ids[0])
+    if (agents.length === 0) return
+    const ids = agents.map(a => a.agent_id)
+    if (!agentIdFromUrl || !ids.includes(agentIdFromUrl)) {
+      const target = agents.find(a => a.status === 'running') ?? agents[0]
+      router.replace(`/?agent=${target.agent_id}`)
     }
-  }, [agents, activeAgentId])
+  }, [agents, agentIdFromUrl, router])
 
-  const { snapshot }  = useSnapshot(activeAgentId)
-  const { markdown }  = useTaskMarkdown()
-  const { workflows } = useWorkflows()
-  const { files }     = useWorkspaceScan()
+  const activeAgent = agents.find(a => a.agent_id === agentIdFromUrl) ?? null
 
-  if (!snapshot) {
+  if (agents.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-slate-500">
-        Connecting to engine\u2026
+      <div className="flex flex-col items-center justify-center h-full gap-3 p-12 text-center">
+        <p className="text-slate-500 italic text-sm">No agents running.</p>
+        <p className="text-slate-600 text-xs">
+          Start one with{' '}
+          <code className="font-mono text-accent-light bg-accent/10 px-1.5 py-0.5 rounded">
+            python orchestrator.py
+          </code>
+        </p>
       </div>
     )
   }
 
+  if (!activeAgent) {
+    return (
+      <div className="flex items-center justify-center h-full text-slate-600 text-sm italic">
+        Selecting agent…
+      </div>
+    )
+  }
+
+  return <AgentPanel agent={activeAgent} />
+}
+
+export default function Dashboard() {
   return (
-    <div className="min-h-screen">
-      <Header snapshot={snapshot} />
-
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3 space-y-6">
-            {/* Stats row */}
-            <StatsRow snapshot={snapshot} />
-
-            {/* Progress bar + card info */}
-            <ProgressPanel snapshot={snapshot} />
-          </div>
-          
-          <div className="lg:col-span-1">
-            <AgentSwitcher 
-              agents={agents} 
-              activeId={activeAgentId} 
-              onSelect={setActiveAgentId} 
-            />
-          </div>
-        </div>
-
-        {/* Task preview + log terminal */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <TaskPreview markdown={markdown} />
-            {activeAgentId !== 'default' && (
-              <div className="mt-2 text-xs text-slate-500 italic px-2">
-                Note: Task preview and Workspace activity are only available for the local agent.
-              </div>
-            )}
-          </div>
-          <div>
-            <LogTerminal lines={snapshot.log_lines ?? []} />
-          </div>
-        </div>
-
-        {/* Workspace file activity - only for local */}
-        {activeAgentId === 'default' && <WorkspaceScan files={files} />}
-
-        {/* Workflows + history */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <WorkflowList workflows={workflows} />
-          <div className="lg:col-span-2">
-            <HistoryFeed history={snapshot.history ?? []} />
-          </div>
-        </div>
-      </main>
-
-      <footer className="border-t border-slate-700/30 mt-8">
-        <div className="max-w-7xl mx-auto px-6 py-3 text-center text-xs text-slate-600">
-          Infinite Agent Flow &middot; Multi-Agent Dashboard &middot; Flask API on :5000
-        </div>
-      </footer>
-    </div>
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-full text-slate-600 text-sm italic">
+        Loading…
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   )
 }
