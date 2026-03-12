@@ -2,6 +2,7 @@
 
 import { FileText, GitBranch, ChevronUp, ChevronDown, Square, Pause, Play } from 'lucide-react'
 import type { Snapshot } from '@/lib/types'
+import { CONTROL_BTN, CONTROL_BTN_BASE } from '@/lib/statusConfig'
 
 interface CardHeaderProps {
   snapshot: Snapshot
@@ -69,9 +70,7 @@ export default function CardHeader({
                 <button
                   onClick={onResume}
                   title="Resume workflow"
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold
-                             bg-success/10 hover:bg-success/20 text-success border border-success/20
-                             transition-all"
+                  className={`${CONTROL_BTN_BASE} ${CONTROL_BTN.resume}`}
                 >
                   <Play className="w-3 h-3" /> Resume
                 </button>
@@ -81,9 +80,7 @@ export default function CardHeader({
                 <button
                   onClick={onPause}
                   title="Pause workflow"
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold
-                             bg-warn/10 hover:bg-warn/20 text-warn border border-warn/20
-                             transition-all"
+                  className={`${CONTROL_BTN_BASE} ${CONTROL_BTN.pause}`}
                 >
                   <Pause className="w-3 h-3" /> Pause
                 </button>
@@ -93,9 +90,7 @@ export default function CardHeader({
               <button
                 onClick={onStop}
                 title="Stop workflow"
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold
-                           bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20
-                           transition-all"
+                className={`${CONTROL_BTN_BASE} ${CONTROL_BTN.stop}`}
               >
                 <Square className="w-3 h-3" /> Stop
               </button>
