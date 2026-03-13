@@ -1,5 +1,8 @@
+import logging
 import threading
 from typing import Any, Callable, Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 class HookManager:
@@ -43,8 +46,7 @@ class HookManager:
             try:
                 callback(*args, **kwargs)
             except Exception as e:
-                # Optionally log the error; keeping it simple for now
-                pass
+                logger.exception("Error in hook '%s'", event_name)
 
     def set_property(self, key: str, value: Any) -> None:
         """Set a global property in the hook manager."""

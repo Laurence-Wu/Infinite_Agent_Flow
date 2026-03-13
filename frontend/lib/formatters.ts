@@ -18,9 +18,9 @@ export function formatUptime(secs: number): string {
 
 /** Returns a Tailwind text-color class appropriate for a log line string. */
 export function lineClass(line: string): string {
-  if (line.includes('[ERROR]'))   return 'text-red-400'
-  if (line.includes('[WARNING]')) return 'text-yellow-400'
-  if (line.includes('[INFO]'))    return 'text-green-400'
+  if (line.includes('[ERROR]'))   return 'text-danger'
+  if (line.includes('[WARNING]')) return 'text-warn'
+  if (line.includes('[INFO]'))    return 'text-success'
   return 'text-slate-500'
 }
 
@@ -45,12 +45,12 @@ export function extColor(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase() ?? ''
   const map: Record<string, string> = {
     md:   'bg-accent',
-    py:   'bg-yellow-400',
-    json: 'bg-green-400',
+    py:   'bg-accent-light',
+    json: 'bg-success',
     txt:  'bg-slate-400',
-    ts:   'bg-blue-400',
-    tsx:  'bg-blue-400',
-    js:   'bg-yellow-300',
+    ts:   'bg-info',
+    tsx:  'bg-info',
+    js:   'bg-accent',
   }
   return map[ext] ?? 'bg-slate-500'
 }

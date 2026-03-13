@@ -34,3 +34,14 @@ export const STATUS_BADGE: Record<string, string> = {
   workflow_finished: 'bg-accent/10  text-accent-light border-accent/30',
   idle:              'bg-slate-800/60 text-slate-500 border-slate-700/40',
 }
+
+/** Base classes shared by all control buttons (pause / resume / stop). */
+export const CONTROL_BTN_BASE =
+  'flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-all border'
+
+/** Per-action color variants — combine with CONTROL_BTN_BASE. */
+export const CONTROL_BTN: Record<'pause' | 'resume' | 'stop', string> = {
+  pause:  'bg-warn/10 hover:bg-warn/20 text-warn border-warn/20',
+  resume: 'bg-success/10 hover:bg-success/20 text-success border-success/20',
+  stop:   'bg-danger/10 hover:bg-danger/20 text-danger border-danger/20',
+}

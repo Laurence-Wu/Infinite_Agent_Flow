@@ -8,9 +8,10 @@ directory traversal attacks.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
+
+WorkflowIdentifier = Tuple[str, str]
 
 from core.base_card import BaseCard, BaseWorkflow
 from core.config import EngineConfig
@@ -35,11 +36,12 @@ class CardsPicker:
     #  Path safety
     # ------------------------------------------------------------------ #
 
-    def _safe_workflow_path(self, workflow_name: str, version: str) -> Path:
+    def _safe_workflow_path(self, identifier: WorkflowIdentifier) -> Path:
         """
         Resolve a workflow directory path and verify it stays inside
         the workflows root.  Prevents ../../ traversal attacks.
         """
+        workflow_name, version = identifier
         base = self._config.resolved_workflows
         target = (base / workflow_name / version).resolve()
         if not target.is_relative_to(base):
@@ -50,24 +52,24 @@ class CardsPicker:
     #  Loading
     # ------------------------------------------------------------------ #
 
-    def load_workflow(self, workflow_name: str, version: str) -> BaseWorkflow:
+    def load_workflow(self, identifier: WorkflowIdentifier) -> BaseWorkflow:
         """
         Load (or return cached) a workflow from disk.
 
         Parameters
         ----------
-        workflow_name : str   e.g. "sample_workflow"
-        version       : str   e.g. "v1"
+        identifier : Tuple[str, str]   e.g. ("sample_workflow", "v1")
 
         Returns
         -------
         BaseWorkflow with all cards populated.
         """
+        workflow_name, version = identifier
         cache_key = f"{workflow_name}/{version}"
         if cache_key in self._workflows:
             return self._workflows[cache_key]
 
-        workflow_dir = self._safe_workflow_path(workflow_name, version)
+        workflow_dir = self._safe_workflow_path(identifier)
         workflow = BaseWorkflow.load(workflow_dir)
         self._workflows[cache_key] = workflow
         return workflow
@@ -95,26 +97,26 @@ class CardsPicker:
     #  Card resolution
     # ------------------------------------------------------------------ #
 
-    def get_first_card(self, workflow_name: str, version: str) -> BaseCard:
+    def get_first_card(self, identifier: WorkflowIdentifier) -> BaseCard:
         """Return the entry-point card of a workflow."""
-        wf = self.load_workflow(workflow_name, version)
+        wf = self.load_workflow(identifier)
         return wf.first_card
 
     def get_loop_first_card(
-        self, workflow_name: str, version: str, loop_id: str
+        self, identifier: WorkflowIdentifier, loop_id: str
     ) -> BaseCard:
         """Return the first card of the named loop within a workflow."""
-        wf = self.load_workflow(workflow_name, version)
+        wf = self.load_workflow(identifier)
         return wf.get_loop_first_card(loop_id)
 
     def get_next_card(
-        self, workflow_name: str, version: str, current_card_id: str
+        self, identifier: WorkflowIdentifier, current_card_id: str
     ) -> Optional[BaseCard]:
         """
         Given the current card ID, return the next Card in the chain.
         Returns None if the workflow is finished (next_card is null).
         """
-        wf = self.load_workflow(workflow_name, version)
+        wf = self.load_workflow(identifier)
         current = wf.get_card(current_card_id)
 
         if current.next_card is None:
@@ -124,19 +126,19 @@ class CardsPicker:
             return wf.get_card(current.next_card)
         except CardNotFoundError:
             raise WorkflowValidationError(
-                workflow=workflow_name,
+                workflow=identifier[0],
                 detail=(
                     f"Card '{current_card_id}' references next_card "
                     f"'{current.next_card}' which does not exist"
                 ),
             )
 
-    def get_card_index(self, workflow_name: str, version: str, card_id: str) -> int:
+    def get_card_index(self, identifier: WorkflowIdentifier, card_id: str) -> int:
         """Return the 0-based index of a card within its workflow."""
-        wf = self.load_workflow(workflow_name, version)
+        wf = self.load_workflow(identifier)
         return wf.card_index(card_id)
 
-    def get_total_cards(self, workflow_name: str, version: str) -> int:
+    def get_total_cards(self, identifier: WorkflowIdentifier) -> int:
         """Return total number of cards in a workflow."""
-        wf = self.load_workflow(workflow_name, version)
+        wf = self.load_workflow(identifier)
         return wf.total_cards

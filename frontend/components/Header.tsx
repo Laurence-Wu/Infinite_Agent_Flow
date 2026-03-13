@@ -1,15 +1,27 @@
 import { Flame } from 'lucide-react'
-import type { Snapshot } from '@/lib/types'
+import type { AgentEntry } from '@/lib/types'
 import { STATUS_DOT } from '@/lib/statusConfig'
 
-export default function Header({ snapshot }: { snapshot: Snapshot }) {
-  const dot = STATUS_DOT[snapshot.status] ?? STATUS_DOT.idle
+interface HeaderProps {
+  agent: AgentEntry | null
+  agentCount?: number
+}
+
+export default function Header({ agent, agentCount }: HeaderProps) {
+  const status = agent?.status ?? 'idle'
+  const dot = STATUS_DOT[status] ?? STATUS_DOT.idle
+
+  // Map dot color to text color token
+  const dotTextClass =
+    dot.color === 'bg-success' ? 'text-success' :
+    dot.color === 'bg-danger'  ? 'text-danger'  :
+    dot.color === 'bg-accent'  ? 'text-accent-light' : 'text-slate-600'
 
   return (
     <header className="border-b border-accent/10 backdrop-blur-sm bg-surface-hard/85 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
 
-        {/* Logo — amber/orange Gruvbox gradient */}
+        {/* Logo */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl
                           bg-gradient-to-br from-accent-light via-accent to-warn
@@ -27,15 +39,23 @@ export default function Header({ snapshot }: { snapshot: Snapshot }) {
           </div>
         </div>
 
-        {/* Right side: workflow badge + status */}
+        {/* Right: active workflow badge + agent count + status */}
         <div className="flex items-center gap-3">
-          {snapshot.current_workflow && (
-            <span className="px-3 py-1 text-xs font-mono rounded-full
-                             bg-accent/10 text-accent-light border border-accent/20
-                             tracking-wide">
-              {snapshot.current_workflow}
+          {/* Workflow badge — from selected agent */}
+          {agent?.workflow && (
+            <span className="hidden sm:inline-flex px-3 py-1 text-xs font-mono rounded-full
+                             bg-accent/10 text-accent-light border border-accent/20 tracking-wide">
+              {agent.workflow}
               <span className="text-slate-700 mx-1">/</span>
-              {snapshot.current_version}
+              {agent.version}
+            </span>
+          )}
+
+          {/* Agent count pill */}
+          {agentCount !== undefined && agentCount > 0 && (
+            <span className="px-2.5 py-1 text-xs font-mono rounded-full
+                             bg-slate-800/60 text-slate-400 border border-slate-700/40">
+              {agentCount} agent{agentCount !== 1 ? 's' : ''}
             </span>
           )}
 
@@ -49,12 +69,8 @@ export default function Header({ snapshot }: { snapshot: Snapshot }) {
               )}
               <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${dot.color}`} />
             </span>
-            <span className={`text-xs font-semibold ${
-              dot.color === 'bg-success' ? 'text-success' :
-              dot.color === 'bg-danger'  ? 'text-danger'  :
-              dot.color === 'bg-accent'  ? 'text-accent-light' : 'text-slate-600'
-            }`}>
-              {dot.label}
+            <span className={`text-xs font-semibold ${dotTextClass}`}>
+              {agent ? dot.label : 'Connecting'}
             </span>
           </div>
         </div>

@@ -7,7 +7,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `http://localhost:${FLASK_PORT}/api/:path*`,
+        destination: `http://127.0.0.1:${FLASK_PORT}/api/:path*`,
       },
     ]
   },

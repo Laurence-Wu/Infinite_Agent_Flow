@@ -3,7 +3,7 @@
   "loop_id": "main",
   "workflow": "jobscrap_v2",
   "version": "v1",
-  "next_card": "fig",
+  "next_card": "raspberry",
   "metadata": {
     "priority": "normal",
     "tags": [
@@ -11,18 +11,5 @@
       "ship"
     ]
   },
-  "instruction": "## f4 · Ship the Feature to Main\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n### Goal\nMerge the verified feature branch to main, update EVOLUTION_LOG, tag the release,\nand clean up sprint artifacts.\n\n### Step 1 — Verify Ready to Ship\nRead `SPRINT_DECISION.md` — confirm `## Verification` is present and\nALL criteria are `[x]`. If not: return to f3.\n\n### Step 2 — Merge to Main
-```
-cd C:\Users\MSI\Desktop\WinCoding\jobScrap\job-war-room
-.venv\Scripts\activate
-git checkout main && git pull origin main
-# Merge with no-ff to preserve feature history
-git merge --no-ff <feature-branch> -m "feat(<scope>): <description>"
-```
-
-### Step 3 — Post-Merge Cleanup & DRY Verification
-- **Test on Main**: `.venv\Scripts\python.exe -m pytest tests/ -v`
-- **Audit for Duplication**: Scan the merged code. If the feature introduced any logic that overlaps with existing code, refactor into a shared utility NOW.
-- If any regression or duplication is found: fix it immediately on main before pushing.
-\n### Step 4 — Push Main\n```\ngit push origin main\n```\n\n### Step 5 — Update EVOLUTION_LOG.md\nAppend:\n```markdown\n## <version> — <date>\n**Feature**: <title from SPRINT_DECISION>\n**Branch**: <branch name>\n**Summary**: <2-3 sentences: what was built and why it matters>\n**Tests added**: <N>\n**Commit**: <git hash>\n```\n\n### Step 6 — Clean Up Sprint Artifacts\n```\ndel SPRINT_DECISION.md\ngit add -u\ngit commit -m \"chore: close sprint — <feature title>\"\ngit push origin main\n```\n\n### Step 7 — Tag the Release\n```\n# Get current version: git describe --tags --abbrev=0\n# Bump: patch for ops/audit-only, minor for any new capability\ngit tag v<new-version>\ngit push origin --tags\n```\n"
+  "instruction": "## f4 \u00b7 Ship the Feature to Main\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room`\n\n### Goal\nMerge the verified feature branch to main, update EVOLUTION_LOG, tag the release,\nand clean up sprint artifacts.\n\n### Step 1 \u2014 Verify Ready to Ship\nRead `SPRINT_DECISION.md` and confirm:\n- `## Verification` exists\n- all criteria are `[x]`\nIf not, return to f3.\n\n### Step 2 \u2014 Merge to Main\n```\ncd C:\\Users\\MSI\\Desktop\\WinCoding\\jobScrap\\job-war-room\n.venv\\Scripts\\activate\ngit checkout main && git pull origin main\n# Merge with no-ff to preserve feature history\ngit merge --no-ff <feature-branch> -m \"feat(<scope>): <description>\"\n```\n\n### Step 3 \u2014 Post-Merge Validation\n- **Test on Main**: `.venv\\Scripts\\python.exe -m pytest tests/ -v`\n- **Audit for Duplication**: Scan merged code; refactor shared logic if duplication appears.\n- If any regression or duplication is found: fix before pushing.\n\n### Step 4 \u2014 Push Main\n```\ngit push origin main\n```\n\n### Step 5 \u2014 Update EVOLUTION_LOG.md\nAppend:\n```markdown\n## <version> \u2014 <date>\n**Feature**: <title from SPRINT_DECISION>\n**Branch**: <branch name>\n**Summary**: <2-3 sentences: what was built and why it matters>\n**Tests added**: <N>\n**Commit**: <git hash>\n```\n\n### Step 6 \u2014 Clean Up Sprint Artifacts\nDelete `SPRINT_DECISION.md` using host-shell equivalent:\n- PowerShell: `Remove-Item SPRINT_DECISION.md -ErrorAction SilentlyContinue`\n- Linux/macOS: `rm -f SPRINT_DECISION.md`\n\nThen:\n```\ngit add -u\ngit commit -m \"chore: close sprint \u2014 <feature title>\"\ngit push origin main\n```\n\n### Step 7 \u2014 Tag the Release\n```\n# Get current version: git describe --tags --abbrev=0\n# Bump: patch for ops/audit-only, minor for any new capability\ngit tag v<new-version>\ngit push origin --tags\n```\n"
 }

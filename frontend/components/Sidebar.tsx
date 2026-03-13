@@ -7,9 +7,9 @@ import {
   Terminal, Activity, FileCode2, Settings, LayoutDashboard,
   History, FileText, Menu, X,
 } from 'lucide-react'
-import { useAgents }    from '@/lib/hooks/useAgents'
-import { useWorkflows } from '@/lib/hooks/useWorkflows'
-import type { AgentEntry } from '@/lib/types'
+import { useDealers }    from '@/lib/hooks/useDealers'
+import { useWorkflows }  from '@/lib/hooks/useWorkflows'
+import type { DealerEntry } from '@/lib/types'
 
 export default function Sidebar() {
   const pathname     = usePathname()
@@ -17,9 +17,9 @@ export default function Sidebar() {
   const [isOpen, setIsOpen]     = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  const { agents }    = useAgents()
+  const { dealers }   = useDealers()
   const { workflows } = useWorkflows()
-  const activeAgentId = searchParams.get('agent')
+  const activeDealerId = searchParams.get('dealer')
 
   // Detect mobile on mount and resize
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function Sidebar() {
           </div>
           <span className="ml-3 font-mono font-bold text-gruvbox-fg hidden lg:block
                            tracking-wide relative z-10 drop-shadow-md">
-            Agent IDE
+            Card Dealer
           </span>
         </div>
 
@@ -111,21 +111,21 @@ export default function Sidebar() {
               icon={item.icon}
               label={item.label}
               href={item.href}
-              active={pathname === item.href && !activeAgentId}
+              active={pathname === item.href && !activeDealerId}
             />
           ))}
 
-          {/* ── Agents ── */}
-          <SectionLabel label="Agents" />
+          {/* ── Dealers ── */}
+          <SectionLabel label="Dealers" />
 
-          {agents.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-slate-600 italic hidden lg:block">No agents</p>
+          {dealers.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-slate-600 italic hidden lg:block">No dealers</p>
           ) : (
-            agents.map(agent => (
-              <AgentSidebarItem
-                key={agent.agent_id}
-                agent={agent}
-                active={activeAgentId === agent.agent_id}
+            dealers.map(dealer => (
+              <DealerSidebarItem
+                key={dealer.dealer_id}
+                dealer={dealer}
+                active={activeDealerId === dealer.dealer_id}
               />
             ))
           )}
@@ -212,15 +212,15 @@ function SidebarItem({
   )
 }
 
-// ── Agent item ─────────────────────────────────────────────────────────────────
-function AgentSidebarItem({ agent, active }: { agent: AgentEntry; active: boolean }) {
+// ── Dealer sidebar item ────────────────────────────────────────────────────────
+function DealerSidebarItem({ dealer, active }: { dealer: DealerEntry; active: boolean }) {
   const dotCls =
-    agent.status === 'running' ? 'bg-success animate-pulse' :
-    agent.status === 'error'   ? 'bg-danger'               : 'bg-slate-600'
+    dealer.status === 'running' ? 'bg-success animate-pulse' :
+    dealer.status === 'error'   ? 'bg-danger'               : 'bg-slate-600'
 
   return (
     <Link
-      href={`/?agent=${agent.agent_id}`}
+      href={`/?dealer=${dealer.dealer_id}`}
       className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all touch-target group relative
         ${active
           ? 'bg-surface-light text-accent shadow-[inset_3px_0_0_rgba(215,153,33,1)]'
@@ -229,15 +229,15 @@ function AgentSidebarItem({ agent, active }: { agent: AgentEntry; active: boolea
       {/* Status dot */}
       <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
 
-      {/* Agent ID */}
+      {/* Dealer ID */}
       <span className="font-mono text-xs truncate flex-1 hidden lg:block">
-        {agent.agent_id}
+        {dealer.dealer_id}
       </span>
 
       {/* Progress % when running */}
-      {agent.status === 'running' && (
+      {dealer.status === 'running' && (
         <span className="text-[10px] font-mono text-accent-light hidden lg:block shrink-0">
-          {agent.progress_pct}%
+          {dealer.progress_pct}%
         </span>
       )}
 
@@ -245,7 +245,7 @@ function AgentSidebarItem({ agent, active }: { agent: AgentEntry; active: boolea
       <div className="absolute left-full ml-2 px-2 py-1 bg-surface-lighter text-xs rounded
                       opacity-0 pointer-events-none group-hover:opacity-100 lg:hidden z-50
                       whitespace-nowrap border border-slate-700 shadow-lg transition-opacity duration-200">
-        {agent.agent_id}
+        {dealer.dealer_id}
       </div>
     </Link>
   )

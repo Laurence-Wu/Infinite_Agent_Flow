@@ -4,96 +4,120 @@ import { useCallback } from 'react'
 
 /**
  * Provides action callbacks for interacting with the engine.
- * Uses RESTful /api/agent/<id>/... routes with backward-compat aliases.
+ *
+ * Dealer methods  — control the Card Dealer workflow runner:
+ *   pauseDealer / resumeDealer / stopDealer / dealNextFor / restartDealer
+ *
+ * Agent methods  — control the AI agent tmux process:
+ *   startAgent / stopAgent / restartAgent
  */
 export function useEngineActions() {
 
-  /** Pause a specific agent's workflow. */
-  const pauseWorkflow = useCallback(async (agentId = 'default') => {
-    const response = await fetch(`/api/agent/${agentId}/pause`, { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to pause workflow')
-    return response.json()
+  // ── Card Dealer controls ──────────────────────────────────────────────
+
+  const pauseDealer = useCallback(async (dealerId = 'default') => {
+    const response = await fetch(`/api/dealer/${dealerId}/pause`, { method: 'POST' })
+    if (!response.ok && response.status !== 503) throw new Error('Failed to pause dealer')
+    return response.json().catch(() => ({ ok: false }))
   }, [])
 
-  /** Resume a paused agent's workflow. */
-  const resumeWorkflow = useCallback(async (agentId = 'default') => {
-    const response = await fetch(`/api/agent/${agentId}/resume`, { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to resume workflow')
-    return response.json()
+  const resumeDealer = useCallback(async (dealerId = 'default') => {
+    const response = await fetch(`/api/dealer/${dealerId}/resume`, { method: 'POST' })
+    if (!response.ok && response.status !== 503) throw new Error('Failed to resume dealer')
+    return response.json().catch(() => ({ ok: false }))
   }, [])
 
-  /** Stop a specific agent's workflow permanently. */
-  const stopWorkflow = useCallback(async (agentId = 'default') => {
-    const response = await fetch(`/api/agent/${agentId}/stop`, { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to stop workflow')
-    return response.json()
+  const stopDealer = useCallback(async (dealerId = 'default') => {
+    const response = await fetch(`/api/dealer/${dealerId}/stop`, { method: 'POST' })
+    if (!response.ok && response.status !== 503) throw new Error('Failed to stop dealer')
+    return response.json().catch(() => ({ ok: false }))
   }, [])
 
-  /** Manually advance one card for a specific agent. */
-  const dealNextFor = useCallback(async (agentId = 'default') => {
-    const response = await fetch(`/api/agent/${agentId}/deal`, { method: 'POST' })
+  const dealNextFor = useCallback(async (dealerId = 'default') => {
+    const response = await fetch(`/api/dealer/${dealerId}/deal`, { method: 'POST' })
     if (!response.ok) throw new Error('Failed to deal next card')
     return response.json()
   }, [])
 
-  /** Convenience alias for the primary agent. */
   const dealNext = useCallback(async () => dealNextFor('default'), [dealNextFor])
 
-  /** Launch a new agent on a given workspace + workflow. */
-  const startAgent = useCallback(async (workspace: string, workflow: string, version = 'v1') => {
-    const response = await fetch('/api/agents', {
+  const restartDealer = useCallback(async (dealerId = 'default') => {
+    const response = await fetch(`/api/dealer/${dealerId}/restart`, { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to restart dealer')
+    return response.json()
+  }, [])
+
+  /** Launch a new dealer on a given workspace + workflow. */
+  const startDealer = useCallback(async (workspace: string, workflow: string, version = 'v1') => {
+    const response = await fetch('/api/dealers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workspace, workflow, version }),
     })
-    if (!response.ok) throw new Error('Failed to start agent')
+    if (!response.ok) throw new Error('Failed to start dealer')
     return response.json()
   }, [])
 
-  /** Stop then respawn an agent with the same workspace/workflow/version. */
-  const restartAgent = useCallback(async (agentId = 'default') => {
-    const response = await fetch(`/api/agent/${agentId}/restart`, { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to restart agent')
-    return response.json()
-  }, [])
-
-  /** Refresh the workspace scan to detect new files. */
   const refreshWorkspace = useCallback(async () => {
     const response = await fetch('/api/workspace-scan')
     if (!response.ok) throw new Error('Failed to refresh workspace')
     return response.json()
   }, [])
 
-  /** Start the tmux agent session (non-blocking — returns immediately). */
-  const startSession = useCallback(async () => {
-    const response = await fetch('/api/session/start', { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to start session')
+  // ── AI Agent (tmux) controls ──────────────────────────────────────────
+
+  const startAgent = useCallback(async () => {
+    const response = await fetch('/api/agent/start', { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to start agent')
     return response.json()
   }, [])
 
-  /** Stop the tmux agent session. */
-  const stopSession = useCallback(async () => {
-    const response = await fetch('/api/session/stop', { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to stop session')
+  const stopAgent = useCallback(async () => {
+    const response = await fetch('/api/agent/stop', { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to stop agent')
     return response.json()
   }, [])
 
-  /** Restart the tmux agent session (non-blocking). */
-  const restartSession = useCallback(async () => {
-    const response = await fetch('/api/session/restart', { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to restart session')
+  const pauseAgent = useCallback(async () => {
+    const response = await fetch('/api/agent/pause', { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to pause agent')
     return response.json()
   }, [])
+
+  const restartAgent = useCallback(async () => {
+    const response = await fetch('/api/agent/restart', { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to restart agent')
+    return response.json()
+  }, [])
+
+  // ── Backward-compat aliases ───────────────────────────────────────────
+
+  const pauseWorkflow  = pauseDealer
+  const resumeWorkflow = resumeDealer
+  const stopWorkflow   = stopDealer
+  const startSession   = startAgent
+  const stopSession    = stopAgent
+  const restartSession = restartAgent
 
   return {
+    // Dealer
+    pauseDealer,
+    resumeDealer,
+    stopDealer,
     dealNext,
     dealNextFor,
+    restartDealer,
+    startDealer,
+    refreshWorkspace,
+    // Agent (tmux)
+    startAgent,
+    stopAgent,
+    pauseAgent,
+    restartAgent,
+    // Aliases
     pauseWorkflow,
     resumeWorkflow,
     stopWorkflow,
-    restartAgent,
-    startAgent,
-    refreshWorkspace,
     startSession,
     stopSession,
     restartSession,

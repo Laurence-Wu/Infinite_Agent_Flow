@@ -79,3 +79,4 @@ configure_user.json
 .DS_Store
 Thumbs.db
 /README.md
+/configure_user.json

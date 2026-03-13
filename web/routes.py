@@ -4,37 +4,53 @@ DashboardRouter — registers all Flask routes as class methods.
 All route logic lives here; web/app.py is a thin factory that
 instantiates this class and calls register().
 
-RESTful agent-control routes (require AgentRegistry):
-    GET  /api/agents                    — list all registered agents
-    GET  /api/agent/<id>                — full snapshot for one agent
-    GET  /api/agent/<id>/logs           — log lines for one agent
-    GET  /api/agent/<id>/history        — completion history for one agent
-    POST /api/agent/<id>/pause          — pause agent
-    POST /api/agent/<id>/resume         — resume agent
-    POST /api/agent/<id>/stop           — stop agent
-    POST /api/agent/<id>/deal           — deal next card
-    POST /api/agent/<id>/restart        — stop then respawn agent with same config
-    GET  /api/agent/<id>/workspace-scan — scan this agent's workspace directory
-    POST /api/agents                    — start new agent (workspace/workflow/version)
-    POST /api/report-state              — peer state report from remote agents
+Card Dealer endpoints  (workflow runner control — require DealerRegistry):
+    GET  /api/dealers                        — list all registered dealers
+    POST /api/dealers                        — start new dealer (workspace/workflow/version)
+    GET  /api/dealer/<id>                    — full snapshot for one dealer
+    GET  /api/dealer/<id>/logs               — log lines for one dealer
+    GET  /api/dealer/<id>/history            — completion history for one dealer
+    POST /api/dealer/<id>/pause              — pause dealer
+    POST /api/dealer/<id>/resume             — resume dealer
+    POST /api/dealer/<id>/stop               — stop dealer
+    POST /api/dealer/<id>/deal               — deal next card
+    POST /api/dealer/<id>/restart            — stop then respawn dealer with same config
+    GET  /api/dealer/<id>/workspace-scan     — scan this dealer's workspace directory
+    POST /api/report-state                   — peer state report from remote dealers
 
-Archive routes (require ArchiveManager):
-    GET  /api/archive                   — list recent archive entries
-    GET  /api/archive/<loop>/<folder>   — single archive entry detail
+Agent endpoints  (AI tmux process control — require TmuxManager):
+    GET  /api/agent                          — tmux session status + pane output
+    GET  /api/agent/stream                   — SSE stream of live pane output
+    POST /api/agent/start                    — start AI agent (non-blocking)
+    POST /api/agent/stop                     — stop AI agent
+    POST /api/agent/pause                    — send Esc to pause mid-generation
+    POST /api/agent/restart                  — restart AI agent (non-blocking)
 
-Session routes (require TmuxManager):
-    GET  /api/session                   — tmux session status + pane output
-    POST /api/session/start             — start tmux session (non-blocking)
-    POST /api/session/stop              — stop tmux session
-    POST /api/session/restart           — restart tmux session (non-blocking)
+Archive routes  (require ArchiveManager):
+    GET  /api/archive                        — list recent archive entries
+    GET  /api/archive/<loop>/<folder>        — single archive entry detail
 
-Backward-compat aliases (kept for existing UI code):
-    GET  /api/status                    — snapshot for queried agent_id
-    POST /api/workflow/pause            — pause (body: {agent_id})
-    POST /api/workflow/resume           — resume (body: {agent_id})
-    POST /api/workflow/stop             — stop   (body: {agent_id})
-    POST /api/deal-next                 — deal next (body: {agent_id})
-    POST /api/agent/start               — start new agent
+Backward-compat aliases  (kept so existing scripts/UI code still works):
+    GET  /api/agents                 → /api/dealers
+    POST /api/agents                 → /api/dealers  (start dealer)
+    GET  /api/agent/<id>             → /api/dealer/<id>
+    GET  /api/agent/<id>/logs        → /api/dealer/<id>/logs
+    GET  /api/agent/<id>/history     → /api/dealer/<id>/history
+    POST /api/agent/<id>/pause       → /api/dealer/<id>/pause
+    POST /api/agent/<id>/resume      → /api/dealer/<id>/resume
+    POST /api/agent/<id>/stop        → /api/dealer/<id>/stop
+    POST /api/agent/<id>/deal        → /api/dealer/<id>/deal
+    POST /api/agent/<id>/restart     → /api/dealer/<id>/restart
+    GET  /api/agent/<id>/workspace-scan → /api/dealer/<id>/workspace-scan
+    GET  /api/session                → /api/agent
+    POST /api/session/start          → /api/agent/start
+    POST /api/session/stop           → /api/agent/stop
+    POST /api/session/restart        → /api/agent/restart
+    GET  /api/status                 — snapshot for queried dealer_id
+    POST /api/workflow/pause         — pause (body: {agent_id})
+    POST /api/workflow/resume        — resume (body: {agent_id})
+    POST /api/workflow/stop          — stop   (body: {agent_id})
+    POST /api/deal-next              — deal next (body: {agent_id})
 """
 
 from __future__ import annotations
@@ -65,7 +81,7 @@ class DashboardRouter:
         state:        StateManager,
         picker:       CardsPicker,
         scanner:      WorkspaceScanner,
-        registry:     Optional[Any] = None,   # AgentRegistry | None
+        registry:     Optional[Any] = None,   # DealerRegistry | None
         archive:      Optional[Any] = None,   # ArchiveManager | None
         tmux_manager: Optional[Any] = None,   # TmuxManager | None
     ) -> None:
@@ -80,21 +96,29 @@ class DashboardRouter:
     def register(self, app: Flask) -> None:
         """Bind all routes to the Flask application."""
 
-        # ── Agent list & control ──────────────────────────────────────────
-        app.add_url_rule("/api/agents",              "api_agents",        self.api_agents)
-        app.add_url_rule("/api/agents",              "api_agents_start",  self.api_agents_start, methods=["POST"])
-        app.add_url_rule("/api/agent/<agent_id>",    "api_agent",         self.api_agent)
-        app.add_url_rule("/api/agent/<agent_id>/logs",    "api_agent_logs",    self.api_agent_logs)
-        app.add_url_rule("/api/agent/<agent_id>/history", "api_agent_history", self.api_agent_history)
-        app.add_url_rule("/api/agent/<agent_id>/pause",   "api_agent_pause",   self.api_agent_pause,   methods=["POST"])
-        app.add_url_rule("/api/agent/<agent_id>/resume",  "api_agent_resume",  self.api_agent_resume,  methods=["POST"])
-        app.add_url_rule("/api/agent/<agent_id>/stop",    "api_agent_stop",    self.api_agent_stop,    methods=["POST"])
-        app.add_url_rule("/api/agent/<agent_id>/deal",    "api_agent_deal",    self.api_agent_deal,    methods=["POST"])
-        app.add_url_rule("/api/agent/<agent_id>/restart",  "api_agent_restart",  self.api_agent_restart,  methods=["POST"])
-        app.add_url_rule("/api/agent/<agent_id>/workspace-scan", "api_agent_workspace_scan", self.api_agent_workspace_scan)
+        # ── Card Dealer list & control (canonical) ────────────────────────
+        app.add_url_rule("/api/dealers",                       "api_dealers",                self.api_dealers)
+        app.add_url_rule("/api/dealers",                       "api_dealers_start",          self.api_dealers_start,          methods=["POST"])
+        app.add_url_rule("/api/dealer/<dealer_id>",            "api_dealer",                 self.api_dealer)
+        app.add_url_rule("/api/dealer/<dealer_id>/logs",       "api_dealer_logs",            self.api_dealer_logs)
+        app.add_url_rule("/api/dealer/<dealer_id>/history",    "api_dealer_history",         self.api_dealer_history)
+        app.add_url_rule("/api/dealer/<dealer_id>/pause",      "api_dealer_pause",           self.api_dealer_pause,           methods=["POST"])
+        app.add_url_rule("/api/dealer/<dealer_id>/resume",     "api_dealer_resume",          self.api_dealer_resume,          methods=["POST"])
+        app.add_url_rule("/api/dealer/<dealer_id>/stop",       "api_dealer_stop",            self.api_dealer_stop,            methods=["POST"])
+        app.add_url_rule("/api/dealer/<dealer_id>/deal",       "api_dealer_deal",            self.api_dealer_deal,            methods=["POST"])
+        app.add_url_rule("/api/dealer/<dealer_id>/restart",    "api_dealer_restart",         self.api_dealer_restart,         methods=["POST"])
+        app.add_url_rule("/api/dealer/<dealer_id>/workspace-scan", "api_dealer_workspace_scan", self.api_dealer_workspace_scan)
 
         # ── Peer state reporting ──────────────────────────────────────────
         app.add_url_rule("/api/report-state", "api_report_state", self.api_report_state, methods=["POST"])
+
+        # ── Agent (AI tmux process) control (canonical) ───────────────────
+        app.add_url_rule("/api/agent",          "api_agent",          self.api_agent)
+        app.add_url_rule("/api/agent/start",   "api_agent_start",   self.api_agent_start,   methods=["POST"])
+        app.add_url_rule("/api/agent/stop",    "api_agent_stop",    self.api_agent_stop,    methods=["POST"])
+        app.add_url_rule("/api/agent/pause",   "api_agent_pause",   self.api_agent_pause,   methods=["POST"])
+        app.add_url_rule("/api/agent/restart", "api_agent_restart", self.api_agent_restart, methods=["POST"])
+        app.add_url_rule("/api/agent/stream",  "api_agent_stream",  self.api_agent_stream)
 
         # ── Archive ───────────────────────────────────────────────────────
         app.add_url_rule("/api/archive",                  "api_archive",       self.api_archive)
@@ -108,18 +132,31 @@ class DashboardRouter:
         app.add_url_rule("/api/logs",           "api_logs",           self.api_logs)
         app.add_url_rule("/api/workspace-scan", "api_workspace_scan", self.api_workspace_scan)
 
-        # ── Backward-compat control aliases ──────────────────────────────
+        # ── Backward-compat dealer aliases (old /api/agents, /api/agent/<id>) ──
+        app.add_url_rule("/api/agents",                            "compat_dealers_get",             self.api_dealers)
+        app.add_url_rule("/api/agents",                            "compat_dealers_post",            self.api_dealers_start,          methods=["POST"])
+        app.add_url_rule("/api/agent/<dealer_id>",                 "compat_dealer",                  self.api_dealer)
+        app.add_url_rule("/api/agent/<dealer_id>/logs",            "compat_dealer_logs",             self.api_dealer_logs)
+        app.add_url_rule("/api/agent/<dealer_id>/history",         "compat_dealer_history",          self.api_dealer_history)
+        app.add_url_rule("/api/agent/<dealer_id>/pause",           "compat_dealer_pause",            self.api_dealer_pause,           methods=["POST"])
+        app.add_url_rule("/api/agent/<dealer_id>/resume",          "compat_dealer_resume",           self.api_dealer_resume,          methods=["POST"])
+        app.add_url_rule("/api/agent/<dealer_id>/stop",            "compat_dealer_stop",             self.api_dealer_stop,            methods=["POST"])
+        app.add_url_rule("/api/agent/<dealer_id>/deal",            "compat_dealer_deal",             self.api_dealer_deal,            methods=["POST"])
+        app.add_url_rule("/api/agent/<dealer_id>/restart",         "compat_dealer_restart",          self.api_dealer_restart,         methods=["POST"])
+        app.add_url_rule("/api/agent/<dealer_id>/workspace-scan",  "compat_dealer_workspace_scan",   self.api_dealer_workspace_scan)
+
+        # ── Backward-compat session aliases (old /api/session) ───────────
+        app.add_url_rule("/api/session",         "compat_session",         self.api_agent)
+        app.add_url_rule("/api/session/start",   "compat_session_start",   self.api_agent_start,   methods=["POST"])
+        app.add_url_rule("/api/session/stop",    "compat_session_stop",    self.api_agent_stop,    methods=["POST"])
+        app.add_url_rule("/api/session/pause",   "compat_session_pause",   self.api_agent_pause,   methods=["POST"])
+        app.add_url_rule("/api/session/restart", "compat_session_restart", self.api_agent_restart, methods=["POST"])
+
+        # ── Backward-compat control aliases (old body-style endpoints) ────
         app.add_url_rule("/api/workflow/pause",  "compat_pause",  self.compat_pause,  methods=["POST"])
         app.add_url_rule("/api/workflow/resume", "compat_resume", self.compat_resume, methods=["POST"])
         app.add_url_rule("/api/workflow/stop",   "compat_stop",   self.compat_stop,   methods=["POST"])
         app.add_url_rule("/api/deal-next",       "compat_deal",   self.compat_deal,   methods=["POST"])
-        app.add_url_rule("/api/agent/start",     "compat_start",  self.api_agents_start, methods=["POST"])
-
-        # ── Session (tmux) ───────────────────────────────────────────────
-        app.add_url_rule("/api/session",         "api_session",         self.api_session)
-        app.add_url_rule("/api/session/start",   "api_session_start",   self.api_session_start,   methods=["POST"])
-        app.add_url_rule("/api/session/stop",    "api_session_stop",    self.api_session_stop,    methods=["POST"])
-        app.add_url_rule("/api/session/restart", "api_session_restart", self.api_session_restart, methods=["POST"])
 
         # ── HTMX partials ─────────────────────────────────────────────────
         app.add_url_rule("/partials/status",   "partial_status",   self.partial_status)
@@ -131,99 +168,98 @@ class DashboardRouter:
         app.add_url_rule("/", "index", self.index)
 
     # ------------------------------------------------------------------ #
-    #  Agent list + control
+    #  Card Dealer list + control
     # ------------------------------------------------------------------ #
 
-    def api_agents(self):
-        """GET /api/agents — list all registered agents as a JSON array."""
+    def api_dealers(self):
+        """GET /api/dealers — list all registered dealers as a JSON array."""
         if self.registry:
-            return jsonify(self.registry.list_agents())
-        # Fallback: synthesise from state snapshots
+            return jsonify(self.registry.list_dealers())
         snaps = self.state.get_all_snapshots()
         return jsonify(list(snaps.values()))
 
-    def api_agents_start(self):
-        """POST /api/agents — start a new agent."""
+    def api_dealers_start(self):
+        """POST /api/dealers — start a new dealer."""
         if self.registry is None:
-            return jsonify({"error": "AgentRegistry not available"}), 503
+            return jsonify({"error": "DealerRegistry not available"}), 503
         body = request.get_json() or {}
         workspace = body.get("workspace")
         workflow  = body.get("workflow")
         version   = body.get("version", "v1")
         if not workspace or not workflow:
             return jsonify({"error": "workspace and workflow are required"}), 400
-        agent_id = self.registry.start_agent(workspace, workflow, version)
-        return jsonify({"ok": True, "agent_id": agent_id}), 201
+        dealer_id = self.registry.start_dealer(workspace, workflow, version)
+        return jsonify({"ok": True, "dealer_id": dealer_id}), 201
 
-    def api_agent(self, agent_id: str):
-        """GET /api/agent/<id> — full snapshot for one agent."""
+    def api_dealer(self, dealer_id: str):
+        """GET /api/dealer/<id> — full snapshot for one dealer."""
         if self.registry:
-            snap = self.registry.get_agent_snapshot(agent_id)
+            snap = self.registry.get_dealer_snapshot(dealer_id)
             if snap is None:
-                return jsonify({"error": f"Agent '{agent_id}' not found"}), 404
+                return jsonify({"error": f"Dealer '{dealer_id}' not found"}), 404
             return jsonify(snap)
-        snap = self.state.get_snapshot(agent_id)
+        snap = self.state.get_snapshot(dealer_id)
         return jsonify(snap)
 
-    def api_agent_logs(self, agent_id: str):
-        """GET /api/agent/<id>/logs — log lines for one agent."""
-        snap = self.state.get_snapshot(agent_id)
-        return jsonify({"agent_id": agent_id, "logs": snap.get("log_lines", [])})
+    def api_dealer_logs(self, dealer_id: str):
+        """GET /api/dealer/<id>/logs — log lines for one dealer."""
+        snap = self.state.get_snapshot(dealer_id)
+        return jsonify({"dealer_id": dealer_id, "logs": snap.get("log_lines", [])})
 
-    def api_agent_history(self, agent_id: str):
-        """GET /api/agent/<id>/history — completion history for one agent."""
-        snap = self.state.get_snapshot(agent_id)
-        return jsonify({"agent_id": agent_id, "history": snap.get("history", [])})
+    def api_dealer_history(self, dealer_id: str):
+        """GET /api/dealer/<id>/history — completion history for one dealer."""
+        snap = self.state.get_snapshot(dealer_id)
+        return jsonify({"dealer_id": dealer_id, "history": snap.get("history", [])})
 
-    def api_agent_pause(self, agent_id: str):
-        """POST /api/agent/<id>/pause."""
+    def api_dealer_pause(self, dealer_id: str):
+        """POST /api/dealer/<id>/pause."""
         if self.registry is None:
-            return jsonify({"error": "AgentRegistry not available"}), 503
-        ok = self.registry.pause_agent(agent_id)
-        return jsonify({"ok": ok, "agent_id": agent_id})
+            return jsonify({"error": "DealerRegistry not available"}), 503
+        ok = self.registry.pause_dealer(dealer_id)
+        return jsonify({"ok": ok, "dealer_id": dealer_id})
 
-    def api_agent_resume(self, agent_id: str):
-        """POST /api/agent/<id>/resume."""
+    def api_dealer_resume(self, dealer_id: str):
+        """POST /api/dealer/<id>/resume."""
         if self.registry is None:
-            return jsonify({"error": "AgentRegistry not available"}), 503
-        ok = self.registry.resume_agent(agent_id)
-        return jsonify({"ok": ok, "agent_id": agent_id})
+            return jsonify({"error": "DealerRegistry not available"}), 503
+        ok = self.registry.resume_dealer(dealer_id)
+        return jsonify({"ok": ok, "dealer_id": dealer_id})
 
-    def api_agent_stop(self, agent_id: str):
-        """POST /api/agent/<id>/stop."""
+    def api_dealer_stop(self, dealer_id: str):
+        """POST /api/dealer/<id>/stop."""
         if self.registry is None:
-            return jsonify({"error": "AgentRegistry not available"}), 503
-        ok = self.registry.stop_agent(agent_id)
-        return jsonify({"ok": ok, "agent_id": agent_id})
+            return jsonify({"error": "DealerRegistry not available"}), 503
+        ok = self.registry.stop_dealer(dealer_id)
+        return jsonify({"ok": ok, "dealer_id": dealer_id})
 
-    def api_agent_deal(self, agent_id: str):
-        """POST /api/agent/<id>/deal — manually advance one card."""
+    def api_dealer_deal(self, dealer_id: str):
+        """POST /api/dealer/<id>/deal — manually advance one card."""
         if self.registry is None:
-            return jsonify({"error": "AgentRegistry not available"}), 503
-        result = self.registry.deal_next(agent_id)
+            return jsonify({"error": "DealerRegistry not available"}), 503
+        result = self.registry.deal_next(dealer_id)
         code = 200 if result.get("ok") else 500
         return jsonify(result), code
 
-    def api_agent_restart(self, agent_id: str):
-        """POST /api/agent/<id>/restart — stop current run and start a fresh one."""
+    def api_dealer_restart(self, dealer_id: str):
+        """POST /api/dealer/<id>/restart — stop current run and start a fresh one."""
         if self.registry is None:
-            return jsonify({"error": "AgentRegistry not available"}), 503
-        # Capture config before stopping
-        agents = self.registry.list_agents()
-        entry = next((a for a in agents if a["agent_id"] == agent_id), None)
+            return jsonify({"error": "DealerRegistry not available"}), 503
+        dealers = self.registry.list_dealers()
+        entry = next((d for d in dealers if d["dealer_id"] == dealer_id), None)
         if entry is None:
-            return jsonify({"error": f"Agent '{agent_id}' not found"}), 404
-        self.registry.stop_agent(agent_id)
-        new_id = self.registry.start_agent(
-            entry["workspace"], entry["workflow"], entry["version"]
+            return jsonify({"error": f"Dealer '{dealer_id}' not found"}), 404
+        self.registry.stop_dealer(dealer_id)
+        new_id = self.registry.start_dealer(
+            entry["workspace"], entry["workflow"], entry["version"],
+            dealer_id=dealer_id,
         )
-        return jsonify({"ok": True, "agent_id": new_id})
+        return jsonify({"ok": True, "dealer_id": new_id})
 
-    def api_agent_workspace_scan(self, agent_id: str):
-        """GET /api/agent/<id>/workspace-scan — scan this agent's workspace directory."""
+    def api_dealer_workspace_scan(self, dealer_id: str):
+        """GET /api/dealer/<id>/workspace-scan — scan this dealer's workspace directory."""
         if not self.registry:
             return jsonify({"files": []})
-        snap = self.registry.get_agent_snapshot(agent_id)
+        snap = self.registry.get_dealer_snapshot(dealer_id)
         ws_path = (snap or {}).get("workspace", "")
         if not ws_path:
             return jsonify({"files": []})
@@ -235,7 +271,7 @@ class DashboardRouter:
     # ------------------------------------------------------------------ #
 
     def api_report_state(self):
-        """POST /api/report-state — accept a state snapshot from a remote agent."""
+        """POST /api/report-state — accept a state snapshot from a remote dealer."""
         data = request.get_json()
         if not data:
             return jsonify({"error": "Missing JSON body"}), 400
@@ -269,15 +305,15 @@ class DashboardRouter:
     # ------------------------------------------------------------------ #
 
     def api_status(self):
-        agent_id = request.args.get("agent_id")
-        return jsonify(self.state.get_snapshot(agent_id))
+        dealer_id = request.args.get("agent_id") or request.args.get("dealer_id")
+        return jsonify(self.state.get_snapshot(dealer_id))
 
     def api_workflows(self):
         return jsonify(self.picker.list_workflows())
 
     def api_history(self):
-        agent_id = request.args.get("agent_id")
-        snap = self.state.get_snapshot(agent_id)
+        dealer_id = request.args.get("agent_id") or request.args.get("dealer_id")
+        snap = self.state.get_snapshot(dealer_id)
         return jsonify(snap.get("history", []))
 
     def api_current_task(self):
@@ -287,83 +323,115 @@ class DashboardRouter:
         return Response("No active task.", mimetype="text/plain", status=404)
 
     def api_logs(self):
-        agent_id = request.args.get("agent_id")
-        snap = self.state.get_snapshot(agent_id)
+        dealer_id = request.args.get("agent_id") or request.args.get("dealer_id")
+        snap = self.state.get_snapshot(dealer_id)
         return jsonify({"logs": snap.get("log_lines", [])})
 
     def api_workspace_scan(self):
         return jsonify({"files": self.scanner.scan()})
 
     # ------------------------------------------------------------------ #
-    #  Backward-compat control aliases
+    #  Backward-compat body-style control aliases
     # ------------------------------------------------------------------ #
 
-    def _agent_id_from_body(self) -> str:
+    def _dealer_id_from_body(self) -> str:
         body = request.get_json(silent=True) or {}
-        return body.get("agent_id", "default")
+        return body.get("dealer_id") or body.get("agent_id", "default")
 
     def compat_pause(self):
-        agent_id = self._agent_id_from_body()
+        dealer_id = self._dealer_id_from_body()
         if self.registry:
-            ok = self.registry.pause_agent(agent_id)
-            return jsonify({"ok": ok, "agent_id": agent_id})
-        return jsonify({"error": "AgentRegistry not available"}), 503
+            ok = self.registry.pause_dealer(dealer_id)
+            return jsonify({"ok": ok, "dealer_id": dealer_id})
+        return jsonify({"error": "DealerRegistry not available"}), 503
 
     def compat_resume(self):
-        agent_id = self._agent_id_from_body()
+        dealer_id = self._dealer_id_from_body()
         if self.registry:
-            ok = self.registry.resume_agent(agent_id)
-            return jsonify({"ok": ok, "agent_id": agent_id})
-        return jsonify({"error": "AgentRegistry not available"}), 503
+            ok = self.registry.resume_dealer(dealer_id)
+            return jsonify({"ok": ok, "dealer_id": dealer_id})
+        return jsonify({"error": "DealerRegistry not available"}), 503
 
     def compat_stop(self):
-        agent_id = self._agent_id_from_body()
+        dealer_id = self._dealer_id_from_body()
         if self.registry:
-            ok = self.registry.stop_agent(agent_id)
-            return jsonify({"ok": ok, "agent_id": agent_id})
-        return jsonify({"error": "AgentRegistry not available"}), 503
+            ok = self.registry.stop_dealer(dealer_id)
+            return jsonify({"ok": ok, "dealer_id": dealer_id})
+        return jsonify({"error": "DealerRegistry not available"}), 503
 
     def compat_deal(self):
-        agent_id = self._agent_id_from_body()
+        dealer_id = self._dealer_id_from_body()
         if self.registry:
-            result = self.registry.deal_next(agent_id)
+            result = self.registry.deal_next(dealer_id)
             code = 200 if result.get("ok") else 500
             return jsonify(result), code
-        return jsonify({"error": "AgentRegistry not available"}), 503
+        return jsonify({"error": "DealerRegistry not available"}), 503
 
     # ------------------------------------------------------------------ #
-    #  Session (tmux) endpoints
+    #  Agent (AI tmux process) endpoints
     # ------------------------------------------------------------------ #
 
     def _no_tmux(self):
         return jsonify({"ok": False, "error": "TmuxManager not configured"}), 503
 
-    def api_session(self):
-        """GET /api/session — tmux session status + pane output."""
+    def api_agent(self):
+        """GET /api/agent — AI agent (tmux session) status + pane output."""
         if not self.tmux_manager:
             return self._no_tmux()
         return jsonify(self.tmux_manager.status())
 
-    def api_session_start(self):
-        """POST /api/session/start — start tmux session (non-blocking; returns immediately)."""
+    def api_agent_start(self):
+        """POST /api/agent/start — start AI agent (non-blocking; returns immediately)."""
         if not self.tmux_manager:
             return self._no_tmux()
-        threading.Thread(target=self.tmux_manager.start, daemon=True, name="session-start").start()
+        threading.Thread(target=self.tmux_manager.start, daemon=True, name="agent-start").start()
         return jsonify({"ok": True, "starting": True, **self.tmux_manager.status()})
 
-    def api_session_stop(self):
-        """POST /api/session/stop — stop tmux session."""
+    def api_agent_stop(self):
+        """POST /api/agent/stop — stop AI agent."""
         if not self.tmux_manager:
             return self._no_tmux()
         self.tmux_manager.stop()
         return jsonify({"ok": True, **self.tmux_manager.status()})
 
-    def api_session_restart(self):
-        """POST /api/session/restart — stop then start (non-blocking)."""
+    def api_agent_pause(self):
+        """POST /api/agent/pause — send Esc to pause mid-generation."""
         if not self.tmux_manager:
             return self._no_tmux()
-        threading.Thread(target=self.tmux_manager.restart, daemon=True, name="session-restart").start()
+        self.tmux_manager.pause()
+        return jsonify({"ok": True, **self.tmux_manager.status()})
+
+    def api_agent_restart(self):
+        """POST /api/agent/restart — stop then start AI agent (non-blocking)."""
+        if not self.tmux_manager:
+            return self._no_tmux()
+        threading.Thread(target=self.tmux_manager.restart, daemon=True, name="agent-restart").start()
         return jsonify({"ok": True, "starting": True, **self.tmux_manager.status()})
+
+    def api_agent_stream(self):
+        """GET /api/agent/stream — SSE stream of live pane output lines."""
+        if not self.tmux_manager:
+            return self._no_tmux()
+
+        def generate():
+            try:
+                for line in self.tmux_manager.stream_lines(timeout=30.0):
+                    if line.startswith(":"):
+                        # SSE keep-alive comment — pass through as-is
+                        yield f"{line}\n\n"
+                    else:
+                        yield f"data: {line}\n\n"
+            except GeneratorExit:
+                pass
+
+        return Response(
+            generate(),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control":     "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     # ------------------------------------------------------------------ #
     #  HTMX partial handlers

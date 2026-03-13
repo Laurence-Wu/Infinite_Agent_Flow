@@ -27,12 +27,54 @@ export interface Snapshot {
   log_lines: string[]
   engine_start_epoch: number | null
   uptime_seconds: number
+  is_paused?: boolean
+  workspace?: string
+}
+
+/** Lightweight summary returned by GET /api/dealers (registry list). */
+export interface DealerEntry {
+  dealer_id: string
+  workspace: string
+  workflow: string
+  version: string
+  status: 'idle' | 'running' | 'completed' | 'error' | 'workflow_finished'
+  current_card_id: string | null
+  started_at: string
+  last_updated: string | null
+  is_paused: boolean
+  cycles_completed: number
+  completed_total: number
+  progress_pct: number
+  card_index: number
+  total_cards: number
+  error: string | null
+}
+
+/** @deprecated Use DealerEntry. Kept for backward compat with old components. */
+export interface AgentEntry {
+  agent_id: string
+  workspace: string
+  workflow: string
+  version: string
+  status: 'idle' | 'running' | 'completed' | 'error' | 'workflow_finished'
+  current_card_id: string | null
+  started_at: string
+  last_updated: string | null
+  is_paused: boolean
+  cycles_completed: number
+  completed_total: number
+  progress_pct: number
+  card_index: number
+  total_cards: number
+  error: string | null
 }
 
 export interface Workflow {
   name: string
   version: string
 }
+
+export type ActiveWorkflows = Record<string, string>
 
 export interface WorkspaceScanEntry {
   path:  string   // relative POSIX path e.g. "current_task.md"
@@ -43,3 +85,16 @@ export interface WorkspaceScanEntry {
 export interface WorkspaceScan {
   files: WorkspaceScanEntry[]
 }
+
+/** Status of the AI tmux agent process. */
+export interface AgentStatus {
+  alive: boolean
+  starting: boolean
+  session_name: string
+  agent_command: string
+  workspace: string
+  pane_lines: string[]
+}
+
+/** @deprecated Use AgentStatus. */
+export type SessionStatus = AgentStatus
