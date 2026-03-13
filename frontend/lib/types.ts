@@ -31,7 +31,26 @@ export interface Snapshot {
   workspace?: string
 }
 
-/** Lightweight summary returned by GET /api/agents (registry list). */
+/** Lightweight summary returned by GET /api/dealers (registry list). */
+export interface DealerEntry {
+  dealer_id: string
+  workspace: string
+  workflow: string
+  version: string
+  status: 'idle' | 'running' | 'completed' | 'error' | 'workflow_finished'
+  current_card_id: string | null
+  started_at: string
+  last_updated: string | null
+  is_paused: boolean
+  cycles_completed: number
+  completed_total: number
+  progress_pct: number
+  card_index: number
+  total_cards: number
+  error: string | null
+}
+
+/** @deprecated Use DealerEntry. Kept for backward compat with old components. */
 export interface AgentEntry {
   agent_id: string
   workspace: string
@@ -67,7 +86,8 @@ export interface WorkspaceScan {
   files: WorkspaceScanEntry[]
 }
 
-export interface SessionStatus {
+/** Status of the AI tmux agent process. */
+export interface AgentStatus {
   alive: boolean
   starting: boolean
   session_name: string
@@ -75,3 +95,6 @@ export interface SessionStatus {
   workspace: string
   pane_lines: string[]
 }
+
+/** @deprecated Use AgentStatus. */
+export type SessionStatus = AgentStatus

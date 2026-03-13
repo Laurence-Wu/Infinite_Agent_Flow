@@ -33,8 +33,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.agent_factory import build_agent_stack
-from core.agent_manager import AgentRegistry
+from core.dealer_factory import build_agent_stack
+from core.dealer_manager import DealerRegistry as AgentRegistry
 from core.hook_manager import HookManager
 from core.tmux_manager import TmuxManager
 from engine.scanner import WorkspaceScanner
@@ -191,13 +191,30 @@ class AgentOrchestrator:
             self._stack.config.resolved_workspace,
         )
 
+        _interrupted = False
         try:
             self._stack.planner.run(self._workflow_name, self._version)
         except KeyboardInterrupt:
             logger.info("Interrupted by user.")
+            _interrupted = True
             self._stack.planner.stop()
         finally:
-            if not self._server_url:
+            if not self._server_url and _interrupted:
+                self._stop_ngrok()
+                self._stop_frontend()
+
+        # Planner stopped via API (not Ctrl+C) — keep Flask alive so the
+        # dashboard remains accessible for further control (restart, new dealers).
+        if not self._server_url and not _interrupted:
+            logger.info(
+                "Planner finished. Dashboard still running at "
+                "http://localhost:%d — press Ctrl+C to exit.",
+                self._flask_port,
+            )
+            try:
+                threading.Event().wait()
+            except KeyboardInterrupt:
+                logger.info("Interrupted by user.")
                 self._stop_ngrok()
                 self._stop_frontend()
 
