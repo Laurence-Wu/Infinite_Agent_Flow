@@ -200,6 +200,7 @@ class AgentOrchestrator:
             self._stack.planner.stop()
         finally:
             if not self._server_url and _interrupted:
+                self._stop_tmux()
                 self._stop_ngrok()
                 self._stop_frontend()
 
@@ -215,6 +216,7 @@ class AgentOrchestrator:
                 threading.Event().wait()
             except KeyboardInterrupt:
                 logger.info("Interrupted by user.")
+                self._stop_tmux()
                 self._stop_ngrok()
                 self._stop_frontend()
 
@@ -287,6 +289,13 @@ class AgentOrchestrator:
             )
         except FileNotFoundError:
             logger.warning("npm not found — Next.js frontend will not start.")
+
+    def _stop_tmux(self) -> None:
+        try:
+            self._tmux.stop()
+            logger.info("tmux session '%s' stopped on exit.", self._tmux.session_name)
+        except Exception as exc:
+            logger.warning("Could not stop tmux session on exit: %s", exc)
 
     def _stop_frontend(self) -> None:
         from core.process_utils import kill_process_tree

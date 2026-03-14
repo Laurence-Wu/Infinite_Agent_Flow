@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from flask import Flask
+from flask_cors import CORS
 
 from core.config import EngineConfig
 from core.state_manager import StateManager
@@ -41,6 +42,11 @@ def create_app(
         template_folder=str(Path(__file__).parent / "templates"),
         static_folder=str(Path(__file__).parent / "static"),
     )
+
+    # Allow the Next.js dev server (port 3000) to connect directly to the
+    # SSE stream endpoint, bypassing the Next.js proxy.
+    CORS(app, resources={r"/api/agent/stream": {"origins": "*"}})
+
     DashboardRouter(config, state, picker, scanner,
                     registry=registry, archive=archive,
                     tmux_manager=tmux_manager).register(app)
