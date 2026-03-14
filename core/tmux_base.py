@@ -85,9 +85,16 @@ class TmuxBase:
         """Return True if the tmux session exists."""
         return self._run("has-session", "-t", self._session).returncode == 0
 
-    def capture(self, lines: int = 30) -> List[str]:
-        """Return the last `lines` non-empty lines of pane output."""
+    def capture(self, lines: int = 30, visible_only: bool = False) -> List[str]:
+        """Return the last `lines` non-empty lines of pane output.
+
+        visible_only=True captures only the current visible screen (no scrollback),
+        preventing stale pane history from poisoning state probes.
+        """
         if not self.is_alive():
             return []
-        result = self._run("capture-pane", "-p", "-t", self._session, "-S", f"-{lines}")
+        cmd = ["capture-pane", "-p", "-t", self._session]
+        if not visible_only:
+            cmd += ["-S", f"-{lines}"]
+        result = self._run(*cmd)
         return [l for l in (result.stdout or "").splitlines() if l.strip()]

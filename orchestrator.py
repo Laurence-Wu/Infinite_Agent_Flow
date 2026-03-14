@@ -131,7 +131,8 @@ class AgentOrchestrator:
         self._tmux = TmuxManager(
             workspace=ws,
             session_name=sname,
-            loop_file=ws / "AGENT_LOOP.md",
+            loop_file=(ws / "AGENT_LOOP.md") if (ws / "AGENT_LOOP.md").exists()
+                      else (PROJECT_ROOT / "workspace" / "AGENT_LOOP.md"),
             agent_command=cmd,
             startup_wait=cfg.agent_startup_wait,
         )

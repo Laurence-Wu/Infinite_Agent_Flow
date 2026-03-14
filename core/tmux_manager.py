@@ -112,7 +112,8 @@ class TmuxManager(TmuxBase):
         if not self.is_alive():
             self._agent_state = AgentState.DEAD
             return AgentState.DEAD
-        lines = self.capture(30)
+        # visible_only=True: probe only the live screen, not stale scrollback
+        lines = self.capture(30, visible_only=True)
         state = probe_pane_state(lines)
         self._agent_state = state
         return state
@@ -172,10 +173,33 @@ class TmuxManager(TmuxBase):
         If the session is dead, creates a fresh one first.
         """
         if self.is_alive():
-            self._interrupt(count=2)
+            # Escape first: cancel any mid-generation output without submitting
+            self._run("send-keys", "-t", self._session, "Escape", "")
+            time.sleep(0.3)
+            self._interrupt(count=3)
+            # Verify we're back at the shell — TUI decorators (────) disappear
+            # once the agent process exits. Keep sending Ctrl+C until they're gone
+            # or we time out (5 s).
+            deadline = time.time() + 5
+            while time.time() < deadline:
+                lines = self.capture(5, visible_only=True)
+                joined = "\n".join(lines)
+                if "─" not in joined and "│" not in joined:
+                    break  # no TUI box-drawing chars — back at shell
+                self._run("send-keys", "-t", self._session, "C-c", "")
+                time.sleep(0.5)
         else:
             ws = self._wsl_path(self._workspace)
             self._run("new-session", "-d", "-s", self._session, "-c", ws)
+
+        # Clear visible screen + scrollback so _startup_sequence starts from a
+        # blank pane. Without this, the old TUI content remains visible and
+        # wait_for_box() fires immediately on stale "Type your message" tokens
+        # before the new agent has rendered anything.
+        self._run("send-keys", "-t", self._session, "clear", "")
+        self._run("send-keys", "-t", self._session, "", "Enter")
+        self._run("clear-history", "-t", self._session)
+        time.sleep(0.3)  # let clear execute and shell settle
 
         self._run("send-keys", "-t", self._session, self._agent_command, "")
         self._run("send-keys", "-t", self._session, "", "Enter")
@@ -308,7 +332,10 @@ class TmuxManager(TmuxBase):
                 return
 
             # ── 2. Early blocking-state check ─────────────────────────────
-            lines = self.capture(30)
+            # visible_only=True: skip scrollback so stale bash errors from a
+            # previous crashed session (e.g. "command not found" from a leaked
+            # terminal escape sequence) don't false-trigger NEEDS_INTERVENTION.
+            lines = self.capture(30, visible_only=True)
             state = probe_pane_state(lines)
 
             if state == AgentState.QUOTA_EXCEEDED:
@@ -338,7 +365,10 @@ class TmuxManager(TmuxBase):
                 time.sleep(1)   # let the consent animation settle
 
             # ── 3. Wait for UI input box — gate before Ctrl+Y ────────────
-            if not self._profile.wait_for_box(self.capture, self.is_alive, self._session):
+            # visible_only lambda: box detection must not read stale scrollback.
+            if not self._profile.wait_for_box(
+                lambda n: self.capture(n, visible_only=True), self.is_alive, self._session
+            ):
                 logger.warning(
                     "tmux session '%s': UI box not detected before Ctrl+Y — aborting",
                     self._session,
@@ -360,7 +390,9 @@ class TmuxManager(TmuxBase):
             time.sleep(0.5)
 
             # ── 6. Wait for UI input box — gate before paste ──────────────
-            if not self._profile.wait_for_box(self.capture, self.is_alive, self._session):
+            if not self._profile.wait_for_box(
+                lambda n: self.capture(n, visible_only=True), self.is_alive, self._session
+            ):
                 logger.warning(
                     "tmux session '%s': UI box not detected before paste — aborting",
                     self._session,
@@ -376,7 +408,9 @@ class TmuxManager(TmuxBase):
             time.sleep(0.5)
 
             # ── 8. Wait for UI input box — gate before Enter ──────────────
-            if not self._profile.wait_for_box(self.capture, self.is_alive, self._session):
+            if not self._profile.wait_for_box(
+                lambda n: self.capture(n, visible_only=True), self.is_alive, self._session
+            ):
                 logger.warning(
                     "tmux session '%s': UI box not detected before Enter — aborting",
                     self._session,

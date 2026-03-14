@@ -1,6 +1,6 @@
 {
   "name": "gemini",
-  "ui_box_tokens": ["> ", "❯ ", "Type your message"],
+  "ui_box_tokens": ["❯ ", "Type your message", "[Pasted Text:"],
   "box_wait_timeout": 30.0,
   "box_poll_interval": 1.0
 }

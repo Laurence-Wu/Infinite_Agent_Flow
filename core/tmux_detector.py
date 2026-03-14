@@ -58,7 +58,9 @@ class AgentState(str, Enum):
 # ---------------------------------------------------------------------------
 
 # Strings that appear in the last visible lines when gemini is ready for input.
-_PROMPT_TOKENS: tuple[str, ...] = ("gemini>", "> ", "❯ ")
+# "> " removed: too broad — matches Gemini TUI input placeholder text
+# ("› ", "❯ ") are rich-TUI cursors; "gemini>" is the plain-text fallback
+_PROMPT_TOKENS: tuple[str, ...] = ("gemini>", "❯ ")
 
 # Quota / rate-limit indicators (case-insensitive)
 _QUOTA_PATTERNS: list[re.Pattern] = [
@@ -82,7 +84,8 @@ _CONSENT_PATTERNS: list[re.Pattern] = [
         r"do you agree",
         r"accept.*terms",
         r"press.*ctrl.?y",
-        r"ctrl\+y",
+        # r"ctrl\+y" removed: matches Gemini's "YOLO ctrl+y" status-bar hint,
+        # causing false CONSENT_PENDING whenever yolo mode is active.
         r"\baccept\b.*\bcontinue\b",
         r"consent",
         r"I agree",

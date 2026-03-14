@@ -202,17 +202,21 @@ class AgentProfile:
 _BUILTIN_PROFILES: dict[str, AgentProfile] = {
     "gemini": AgentProfile(
         name="gemini",
-        # "Type your message" is the placeholder text inside the Gemini CLI
-        # TUI input box — the most reliable indicator that the box is rendered.
-        # "> " and "❯ " are fallback prompt tokens for plain-text modes.
-        ui_box_tokens=("> ", "❯ ", "Type your message"),
+        # "Type your message" — placeholder shown when the input box is empty.
+        # "[Pasted Text:"     — shown after paste-buffer fills the box; the
+        #                       gate-before-Enter must also match this state,
+        #                       because the placeholder disappears once text lands.
+        # "> " removed: too broad — matches " > Killed your message…" and other
+        # TUI decorative lines, causing false-ready detection before box is live.
+        ui_box_tokens=("❯ ", "Type your message", "[Pasted Text:"),
     ),
     "claude": AgentProfile(
         name="claude",
-        ui_box_tokens=("> ", "❯ "),
+        # "> " removed: same false-match risk in Claude TUI decorative lines.
+        ui_box_tokens=("❯ ",),
     ),
     "_default": AgentProfile(
         name="_default",
-        ui_box_tokens=("> ", "❯ "),
+        ui_box_tokens=("❯ ",),
     ),
 }
