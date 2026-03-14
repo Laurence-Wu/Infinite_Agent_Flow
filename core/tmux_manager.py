@@ -27,15 +27,20 @@ Startup / "yolo" flow  (start and restart share the same _startup_sequence)
        - QUOTA_EXCEEDED / NEEDS_INTERVENTION → abort immediately.
        - CONSENT_PENDING → send Ctrl+Y (accept ToS), sleep 1 s, continue.
        - Anything else   → no early action.
-  3. Wait for the UI input box to be stable — this is the gate.
-     Nothing is sent until PromptDetector confirms stability.
+  3. AgentProfile.wait_for_box()  ← GATE before first interaction.
   4. [separate] Send Ctrl+Y        → yolo mode (auto-accept tool calls).
-  5. [separate] sleep 0.5 s.
-  6. [separate] load-buffer        → load AGENT_LOOP.md into tmux buffer.
-  7. [separate] sleep 0.5 s.
-  8. [separate] paste-buffer       → paste into the input box.
-  9. [separate] sleep 0.5 s.
- 10. [separate] send-keys Enter    → submit.
+  5. sleep 0.5 s.
+  6. AgentProfile.wait_for_box()  ← gate before paste.
+  7. [separate] load-buffer        → load AGENT_LOOP.md into tmux buffer.
+  8. sleep 0.5 s.
+  9. [separate] paste-buffer       → paste into the input box.
+ 10. sleep 0.5 s.
+ 11. AgentProfile.wait_for_box()  ← gate before Enter.
+ 12. [separate] send-keys Enter    → submit.
+
+AgentProfile (core/agent_profile.py) defines what "UI box visible" means for
+each agent.  The default Gemini profile checks for "Type your message" / "> "
+/ "❯ " in the last 5 pane lines.  Override by editing agents/gemini.json.
 """
 from __future__ import annotations
 
@@ -46,6 +51,7 @@ from collections import deque
 from pathlib import Path
 from typing import Generator
 
+from core.agent_profile import AgentProfile
 from core.tmux_base     import TmuxBase
 from core.tmux_detector import AgentState, PromptDetector, probe_pane_state
 
@@ -74,6 +80,8 @@ class TmuxManager(TmuxBase):
             is_alive_fn = self.is_alive,
             timeout     = startup_wait,
         )
+        agents_dir      = Path(__file__).resolve().parent.parent / "agents"
+        self._profile   = AgentProfile.for_command(agent_command, agents_dir=agents_dir)
         # Live pane streaming state
         self._pane_buffer: deque[str]         = deque(maxlen=500)
         self._pane_lock                        = threading.Lock()
@@ -276,16 +284,17 @@ class TmuxManager(TmuxBase):
           1. Wait for any pane output (gemini booting).
           2. Check for blocking states early (quota / intervention → abort).
              If consent screen is visible → send Ctrl+Y to accept ToS.
-          3. Wait for the UI input box to be stable (PromptDetector).
-             This is the gate — nothing is sent until stability is confirmed.
+          3. AgentProfile.wait_for_box()  ← gate before Ctrl+Y.
           4. Send Ctrl+Y  (yolo mode — auto-accept tool calls).  [separate call]
           5. Sleep 0.5 s.
-          6. Load AGENT_LOOP.md into the tmux buffer.            [separate call]
+          6. Load AGENT_LOOP.md into the tmux buffer.            [local op]
           7. Sleep 0.5 s.
-          8. Paste buffer into the input box.                    [separate call]
-          9. Sleep 0.5 s.
-         10. Send Enter to submit.                               [separate call]
-         11. Final state probe so status() is accurate immediately.
+          8. AgentProfile.wait_for_box()  ← gate before paste.
+          9. Paste buffer (bracketed -p) into input box.         [separate call]
+         10. Sleep 0.5 s.
+         11. AgentProfile.wait_for_box()  ← gate before Enter.
+         12. Send Enter to submit.                               [separate call]
+         13. Final state probe so status() is accurate immediately.
 
         Sets self._starting = False when done (or on failure).
         """
@@ -328,17 +337,18 @@ class TmuxManager(TmuxBase):
                 )
                 time.sleep(1)   # let the consent animation settle
 
-            # ── 3. Wait for UI box stability — gate for all further sends ──
-            self._detector.wait(session_name=self._session)
-
-            if not self.is_alive():
-                logger.warning("tmux session '%s' died during startup", self._session)
+            # ── 3. Wait for UI input box — gate before Ctrl+Y ────────────
+            if not self._profile.wait_for_box(self.capture, self.is_alive, self._session):
+                logger.warning(
+                    "tmux session '%s': UI box not detected before Ctrl+Y — aborting",
+                    self._session,
+                )
                 return
 
             # ── 4. Ctrl+Y — yolo mode (auto-accept tool calls) ───────────
             self._run("send-keys", "-t", self._session, "C-y", "")
             logger.info(
-                "tmux session '%s': UI stable → sent Ctrl+Y (yolo mode)",
+                "tmux session '%s': UI box visible → sent Ctrl+Y (yolo mode)",
                 self._session,
             )
             time.sleep(0.5)
@@ -349,12 +359,31 @@ class TmuxManager(TmuxBase):
             logger.info("tmux session '%s': loop file loaded into buffer", self._session)
             time.sleep(0.5)
 
-            # ── 6. Paste buffer into the input box ────────────────────────
-            self._run("paste-buffer", "-t", self._session)
+            # ── 6. Wait for UI input box — gate before paste ──────────────
+            if not self._profile.wait_for_box(self.capture, self.is_alive, self._session):
+                logger.warning(
+                    "tmux session '%s': UI box not detected before paste — aborting",
+                    self._session,
+                )
+                return
+
+            # ── 7. Paste buffer (bracketed) into the input box ────────────
+            # -p flag wraps content in \033[200~...\033[201~ so the TUI treats
+            # the entire file as a single paste event — newlines are preserved
+            # instead of being interpreted as Enter keypresses.
+            self._run("paste-buffer", "-p", "-t", self._session)
             logger.info("tmux session '%s': buffer pasted into pane", self._session)
             time.sleep(0.5)
 
-            # ── 7. Press Enter to submit ──────────────────────────────────
+            # ── 8. Wait for UI input box — gate before Enter ──────────────
+            if not self._profile.wait_for_box(self.capture, self.is_alive, self._session):
+                logger.warning(
+                    "tmux session '%s': UI box not detected before Enter — aborting",
+                    self._session,
+                )
+                return
+
+            # ── 9. Press Enter to submit ──────────────────────────────────
             self._run("send-keys", "-t", self._session, "", "Enter")
             logger.info("tmux session '%s': Enter sent — AGENT_LOOP.md submitted", self._session)
 
