@@ -258,36 +258,6 @@ class DealerRegistry:
         return snap
 
     # ------------------------------------------------------------------ #
-    #  Backward-compat aliases (old "agent" naming → new "dealer" naming)
-    # ------------------------------------------------------------------ #
-
-    def register_stack_compat(self, stack: Any) -> None:
-        return self.register_stack(stack)
-
-    def start_agent(self, workspace: str, workflow: str, version: str,
-                    agent_id: Optional[str] = None) -> str:
-        return self.start_dealer(workspace, workflow, version, dealer_id=agent_id)
-
-    def stop_agent(self, agent_id: str) -> bool:
-        return self.stop_dealer(agent_id)
-
-    def pause_agent(self, agent_id: str) -> bool:
-        return self.pause_dealer(agent_id)
-
-    def resume_agent(self, agent_id: str) -> bool:
-        return self.resume_dealer(agent_id)
-
-    def list_agents(self) -> List[Dict[str, Any]]:
-        """Backward-compat: returns list_dealers() with agent_id key added."""
-        result = self.list_dealers()
-        for item in result:
-            item["agent_id"] = item["dealer_id"]
-        return result
-
-    def get_agent_snapshot(self, agent_id: str) -> Optional[Dict[str, Any]]:
-        return self.get_dealer_snapshot(agent_id)
-
-    # ------------------------------------------------------------------ #
     #  Internal helpers
     # ------------------------------------------------------------------ #
 

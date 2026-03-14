@@ -98,7 +98,7 @@ def build_dealer_stack(
 
     picker = CardsPicker(config)
     dealer = CardsDealer(config, state, archive=archive, agent_id=dealer_id)
-    planner = CardsPlanner(config, state, picker, dealer, agent_id=dealer_id)
+    planner = CardsPlanner(config, state, picker, dealer, agent_id=dealer_id, archive=archive)
 
     return DealerStack(
         agent_id=dealer_id,
@@ -112,28 +112,3 @@ def build_dealer_stack(
         archive=archive,
     )
 
-
-# ---------------------------------------------------------------------------
-# Backward-compat aliases so old imports still work
-# ---------------------------------------------------------------------------
-
-AgentStack = DealerStack
-
-def build_agent_stack(
-    workspace: str,
-    workflow: str,
-    version: str,
-    agent_id: str,
-    hook_manager: Any,
-    server_url: Optional[str] = None,
-    workflows_path: Optional[str] = None,
-) -> DealerStack:
-    return build_dealer_stack(
-        workspace=workspace,
-        workflow=workflow,
-        version=version,
-        dealer_id=agent_id,
-        hook_manager=hook_manager,
-        server_url=server_url,
-        workflows_path=workflows_path,
-    )

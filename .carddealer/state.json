@@ -11,18 +11,18 @@
   "cycles_completed": 0,
   "current_loop_id": "main",
   "status": "running",
-  "started_at": "2026-03-13T00:35:47.309048",
-  "last_updated": "2026-03-13T00:35:47.309048",
+  "started_at": "2026-03-14T16:47:36.758124",
+  "last_updated": "2026-03-14T16:47:36.758124",
   "history": [],
   "error": null,
   "log_lines": [
-    "00:35:47 [INFO] core.dealer_manager: Registered dealer default (workspace=C:\\Users\\MSI\\Desktop\\WinCoding\\CardDealer)",
-    "00:35:47 [INFO] orchestrator: Dashboard running at http://localhost:5000",
-    "00:35:47 [INFO] orchestrator: Next.js frontend started at http://localhost:3000 (proxying to port 5000)",
-    "00:35:47 [INFO] orchestrator: Starting workflow: sample_workflow/v1 \u2192 workspace: C:\\Users\\MSI\\Desktop\\WinCoding\\CardDealer",
-    "00:35:47 [INFO] werkzeug: \u001b[31m\u001b[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.\u001b[0m\n * Running on http://127.0.0.1:5000",
-    "00:35:47 [INFO] werkzeug: \u001b[33mPress CTRL+C to quit\u001b[0m"
+    "16:47:36 [INFO] core.dealer_manager: Registered dealer default (workspace=C:\\Users\\MSI\\Desktop\\WinCoding\\CardDealer)",
+    "16:47:36 [INFO] orchestrator: Dashboard running at http://localhost:5000",
+    "16:47:36 [INFO] orchestrator: Next.js frontend started at http://localhost:3000 (proxying to port 5000)",
+    "16:47:36 [INFO] orchestrator: Starting workflow: sample_workflow/v1 \u2192 workspace: C:\\Users\\MSI\\Desktop\\WinCoding\\CardDealer",
+    "16:47:36 [INFO] werkzeug: \u001b[31m\u001b[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.\u001b[0m\n * Running on http://127.0.0.1:5000",
+    "16:47:36 [INFO] werkzeug: \u001b[33mPress CTRL+C to quit\u001b[0m"
   ],
-  "engine_start_epoch": 1773376546.5229573,
-  "uptime_seconds": 0.7863819599151611
+  "engine_start_epoch": 1773521251.101084,
+  "uptime_seconds": 5.657348871231079
 }

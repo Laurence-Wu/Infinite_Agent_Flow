@@ -33,8 +33,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.dealer_factory import build_agent_stack
-from core.dealer_manager import DealerRegistry as AgentRegistry
+from core.dealer_factory import build_dealer_stack
+from core.dealer_manager import DealerRegistry
 from core.hook_manager import HookManager
 from core.tmux_manager import TmuxManager
 from engine.scanner import WorkspaceScanner
@@ -107,11 +107,11 @@ class AgentOrchestrator:
         self._hook_manager = HookManager()
 
         # Build entire agent stack through the factory (single source of truth)
-        self._stack = build_agent_stack(
+        self._stack = build_dealer_stack(
             workspace=workspace_path,
             workflow=workflow_name,
             version=version,
-            agent_id=derived_id,
+            dealer_id=derived_id,
             hook_manager=self._hook_manager,
             server_url=server_url,
             workflows_path=wf_path,
@@ -138,7 +138,7 @@ class AgentOrchestrator:
 
         # Dashboard mode only: create registry and Flask app
         if server_url is None:
-            self._registry = AgentRegistry(self._hook_manager, wf_path)
+            self._registry = DealerRegistry(self._hook_manager, wf_path)
             self._registry.register_stack(self._stack)
             self.app = create_app(
                 config=self._stack.config,
@@ -178,7 +178,7 @@ class AgentOrchestrator:
         if self._auto_start:
             logger.info(
                 "Auto-starting tmux session '%s' with command '%s'",
-                self._tmux._session, self._tmux._agent_command,
+                self._tmux.session_name, self._tmux.agent_command,
             )
             threading.Thread(target=self._tmux.start, daemon=True, name="tmux-autostart").start()
 
@@ -234,10 +234,10 @@ class AgentOrchestrator:
                     logger.warning(
                         "tmux session '%s' is dead — use the dashboard or "
                         "scripts/restart_agent.sh to recover",
-                        self._tmux._session,
+                        self._tmux.session_name,
                     )
                 elif was_alive is False and alive:
-                    logger.info("tmux session '%s' is now alive", self._tmux._session)
+                    logger.info("tmux session '%s' is now alive", self._tmux.session_name)
                 was_alive = alive
             except Exception:
                 pass

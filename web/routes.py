@@ -55,6 +55,7 @@ Backward-compat aliases  (kept so existing scripts/UI code still works):
 
 from __future__ import annotations
 
+import functools
 import threading
 from pathlib import Path
 from typing import Any, Optional
@@ -63,8 +64,29 @@ from flask import Flask, Response, jsonify, render_template, request
 
 from core.config import EngineConfig
 from core.state_manager import StateManager
+from core.tmux_detector import AgentState
 from engine.picker import CardsPicker
 from engine.scanner import WorkspaceScanner
+
+
+def _require_registry(fn):
+    """Guard: return 503 when self.registry is None."""
+    @functools.wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        if self.registry is None:
+            return jsonify({"error": "DealerRegistry not available"}), 503
+        return fn(self, *args, **kwargs)
+    return wrapper
+
+
+def _require_tmux(fn):
+    """Guard: return 503 when self.tmux_manager is None."""
+    @functools.wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        if not self.tmux_manager:
+            return jsonify({"ok": False, "error": "TmuxManager not configured"}), 503
+        return fn(self, *args, **kwargs)
+    return wrapper
 
 
 class DashboardRouter:
@@ -178,10 +200,9 @@ class DashboardRouter:
         snaps = self.state.get_all_snapshots()
         return jsonify(list(snaps.values()))
 
+    @_require_registry
     def api_dealers_start(self):
         """POST /api/dealers — start a new dealer."""
-        if self.registry is None:
-            return jsonify({"error": "DealerRegistry not available"}), 503
         body = request.get_json() or {}
         workspace = body.get("workspace")
         workflow  = body.get("workflow")
@@ -211,39 +232,34 @@ class DashboardRouter:
         snap = self.state.get_snapshot(dealer_id)
         return jsonify({"dealer_id": dealer_id, "history": snap.get("history", [])})
 
+    @_require_registry
     def api_dealer_pause(self, dealer_id: str):
         """POST /api/dealer/<id>/pause."""
-        if self.registry is None:
-            return jsonify({"error": "DealerRegistry not available"}), 503
         ok = self.registry.pause_dealer(dealer_id)
         return jsonify({"ok": ok, "dealer_id": dealer_id})
 
+    @_require_registry
     def api_dealer_resume(self, dealer_id: str):
         """POST /api/dealer/<id>/resume."""
-        if self.registry is None:
-            return jsonify({"error": "DealerRegistry not available"}), 503
         ok = self.registry.resume_dealer(dealer_id)
         return jsonify({"ok": ok, "dealer_id": dealer_id})
 
+    @_require_registry
     def api_dealer_stop(self, dealer_id: str):
         """POST /api/dealer/<id>/stop."""
-        if self.registry is None:
-            return jsonify({"error": "DealerRegistry not available"}), 503
         ok = self.registry.stop_dealer(dealer_id)
         return jsonify({"ok": ok, "dealer_id": dealer_id})
 
+    @_require_registry
     def api_dealer_deal(self, dealer_id: str):
         """POST /api/dealer/<id>/deal — manually advance one card."""
-        if self.registry is None:
-            return jsonify({"error": "DealerRegistry not available"}), 503
         result = self.registry.deal_next(dealer_id)
         code = 200 if result.get("ok") else 500
         return jsonify(result), code
 
+    @_require_registry
     def api_dealer_restart(self, dealer_id: str):
         """POST /api/dealer/<id>/restart — stop current run and start a fresh one."""
-        if self.registry is None:
-            return jsonify({"error": "DealerRegistry not available"}), 503
         dealers = self.registry.list_dealers()
         entry = next((d for d in dealers if d["dealer_id"] == dealer_id), None)
         if entry is None:
@@ -338,81 +354,126 @@ class DashboardRouter:
         body = request.get_json(silent=True) or {}
         return body.get("dealer_id") or body.get("agent_id", "default")
 
+    @_require_registry
     def compat_pause(self):
         dealer_id = self._dealer_id_from_body()
-        if self.registry:
-            ok = self.registry.pause_dealer(dealer_id)
-            return jsonify({"ok": ok, "dealer_id": dealer_id})
-        return jsonify({"error": "DealerRegistry not available"}), 503
+        ok = self.registry.pause_dealer(dealer_id)
+        return jsonify({"ok": ok, "dealer_id": dealer_id})
 
+    @_require_registry
     def compat_resume(self):
         dealer_id = self._dealer_id_from_body()
-        if self.registry:
-            ok = self.registry.resume_dealer(dealer_id)
-            return jsonify({"ok": ok, "dealer_id": dealer_id})
-        return jsonify({"error": "DealerRegistry not available"}), 503
+        ok = self.registry.resume_dealer(dealer_id)
+        return jsonify({"ok": ok, "dealer_id": dealer_id})
 
+    @_require_registry
     def compat_stop(self):
         dealer_id = self._dealer_id_from_body()
-        if self.registry:
-            ok = self.registry.stop_dealer(dealer_id)
-            return jsonify({"ok": ok, "dealer_id": dealer_id})
-        return jsonify({"error": "DealerRegistry not available"}), 503
+        ok = self.registry.stop_dealer(dealer_id)
+        return jsonify({"ok": ok, "dealer_id": dealer_id})
 
+    @_require_registry
     def compat_deal(self):
         dealer_id = self._dealer_id_from_body()
-        if self.registry:
-            result = self.registry.deal_next(dealer_id)
-            code = 200 if result.get("ok") else 500
-            return jsonify(result), code
-        return jsonify({"error": "DealerRegistry not available"}), 503
+        result = self.registry.deal_next(dealer_id)
+        code = 200 if result.get("ok") else 500
+        return jsonify(result), code
 
     # ------------------------------------------------------------------ #
     #  Agent (AI tmux process) endpoints
     # ------------------------------------------------------------------ #
 
-    def _no_tmux(self):
-        return jsonify({"ok": False, "error": "TmuxManager not configured"}), 503
+    def _agent_preflight(
+        self, *, block_intervention: bool = True
+    ) -> "tuple[AgentState, tuple | None]":
+        """
+        Probe the current agent state.
 
+        Returns (state, error_response) where error_response is non-None only
+        when the state blocks the requested operation.  The caller should
+        return early with error_response when it is not None.
+
+        Parameters
+        ----------
+        block_intervention :
+            When False, NEEDS_INTERVENTION is not treated as a blocker.
+            Use this for restart — the user may have fixed the issue and
+            wants a clean relaunch.
+        """
+        state = self.tmux_manager.probe_state()
+        if state == AgentState.QUOTA_EXCEEDED:
+            return state, (
+                jsonify({
+                    "ok":    False,
+                    "error": "Agent quota exceeded — check your Gemini API quota.",
+                    "agent_state": state.value,
+                }),
+                503,
+            )
+        if block_intervention and state == AgentState.NEEDS_INTERVENTION:
+            pane = self.tmux_manager.capture(20)
+            return state, (
+                jsonify({
+                    "ok":         False,
+                    "error":      "Agent needs intervention (auth error or fatal crash).",
+                    "agent_state": state.value,
+                    "pane_tail":  pane[-10:] if pane else [],
+                }),
+                503,
+            )
+        return state, None
+
+    @_require_tmux
     def api_agent(self):
         """GET /api/agent — AI agent (tmux session) status + pane output."""
-        if not self.tmux_manager:
-            return self._no_tmux()
-        return jsonify(self.tmux_manager.status())
+        state = self.tmux_manager.probe_state()
+        return jsonify({"agent_state": state.value, **self.tmux_manager.status()})
 
+    @_require_tmux
     def api_agent_start(self):
         """POST /api/agent/start — start AI agent (non-blocking; returns immediately)."""
-        if not self.tmux_manager:
-            return self._no_tmux()
+        state, err = self._agent_preflight()
+        if err:
+            return err
         threading.Thread(target=self.tmux_manager.start, daemon=True, name="agent-start").start()
-        return jsonify({"ok": True, "starting": True, **self.tmux_manager.status()})
+        return jsonify({"ok": True, "starting": True, "agent_state": state.value,
+                        **self.tmux_manager.status()})
 
+    @_require_tmux
     def api_agent_stop(self):
         """POST /api/agent/stop — stop AI agent."""
-        if not self.tmux_manager:
-            return self._no_tmux()
+        state, err = self._agent_preflight()
+        if err:
+            return err
         self.tmux_manager.stop()
         return jsonify({"ok": True, **self.tmux_manager.status()})
 
+    @_require_tmux
     def api_agent_pause(self):
         """POST /api/agent/pause — send Esc to pause mid-generation."""
-        if not self.tmux_manager:
-            return self._no_tmux()
+        state, err = self._agent_preflight()
+        if err:
+            return err
+        if state == AgentState.DEAD:
+            return jsonify({"ok": False, "error": "Agent is not running.", "agent_state": state.value}), 409
         self.tmux_manager.pause()
         return jsonify({"ok": True, **self.tmux_manager.status()})
 
+    @_require_tmux
     def api_agent_restart(self):
-        """POST /api/agent/restart — stop then start AI agent (non-blocking)."""
-        if not self.tmux_manager:
-            return self._no_tmux()
+        """POST /api/agent/restart — stop then start AI agent (non-blocking).
+        NEEDS_INTERVENTION allows restart (user may have fixed the issue);
+        QUOTA_EXCEEDED blocks it."""
+        state, err = self._agent_preflight(block_intervention=False)
+        if err:
+            return err
         threading.Thread(target=self.tmux_manager.restart, daemon=True, name="agent-restart").start()
-        return jsonify({"ok": True, "starting": True, **self.tmux_manager.status()})
+        return jsonify({"ok": True, "starting": True, "agent_state": state.value,
+                        **self.tmux_manager.status()})
 
+    @_require_tmux
     def api_agent_stream(self):
         """GET /api/agent/stream — SSE stream of live pane output lines."""
-        if not self.tmux_manager:
-            return self._no_tmux()
-
         def generate():
             try:
                 for line in self.tmux_manager.stream_lines(timeout=30.0):

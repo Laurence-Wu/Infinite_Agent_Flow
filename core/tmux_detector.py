@@ -15,18 +15,142 @@ PromptDetector polls a tmux pane using three strategies (in priority order):
   C. Timeout fallback       — if neither A nor B fires within `timeout` seconds,
                               log a warning and return False so the caller can
                               decide whether to proceed anyway.
+
+probe_pane_state(lines)
+-----------------------
+Inspects a list of pane lines and returns an AgentState without side-effects.
+Used by TmuxManager before sending any command to avoid acting on a stale or
+broken session.
+
+States (priority order):
+  DEAD                — session does not exist (no lines / caller detected dead)
+  QUOTA_EXCEEDED      — gemini reports quota / rate-limit exhaustion
+  NEEDS_INTERVENTION  — auth failure, fatal error, unknown blocking prompt
+  CONSENT_PENDING     — first-run ToS / consent screen waiting for Ctrl+Y
+  STARTING            — gemini launched but not yet at input box
+  RUNNING             — normal input-ready state
 """
 from __future__ import annotations
 
 import logging
+import re
 import time
+from enum import Enum
 from typing import Callable, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Strings that appear in the last visible lines when gemini is ready for input.
-_PROMPT_TOKENS = ("gemini>", "> ", "❯ ")
+# ---------------------------------------------------------------------------
+# Agent state
+# ---------------------------------------------------------------------------
 
+class AgentState(str, Enum):
+    DEAD                = "dead"
+    QUOTA_EXCEEDED      = "quota_exceeded"
+    NEEDS_INTERVENTION  = "needs_intervention"
+    CONSENT_PENDING     = "consent_pending"
+    STARTING            = "starting"
+    RUNNING             = "running"
+
+
+# ---------------------------------------------------------------------------
+# Pattern tables  (compiled once at import time)
+# ---------------------------------------------------------------------------
+
+# Strings that appear in the last visible lines when gemini is ready for input.
+_PROMPT_TOKENS: tuple[str, ...] = ("gemini>", "> ", "❯ ")
+
+# Quota / rate-limit indicators (case-insensitive)
+_QUOTA_PATTERNS: list[re.Pattern] = [
+    re.compile(r, re.IGNORECASE) for r in [
+        r"quota.?exceeded",
+        r"rate.?limit",
+        r"resource.?exhausted",
+        r"RESOURCE_EXHAUSTED",
+        r"429",
+        r"too many requests",
+        r"billing",
+        r"you have exceeded",
+    ]
+]
+
+# Consent / ToS screen indicators (case-insensitive)
+_CONSENT_PATTERNS: list[re.Pattern] = [
+    re.compile(r, re.IGNORECASE) for r in [
+        r"terms of service",
+        r"privacy policy",
+        r"do you agree",
+        r"accept.*terms",
+        r"press.*ctrl.?y",
+        r"ctrl\+y",
+        r"\baccept\b.*\bcontinue\b",
+        r"consent",
+        r"I agree",
+    ]
+]
+
+# Fatal / intervention-needed indicators (case-insensitive)
+_INTERVENTION_PATTERNS: list[re.Pattern] = [
+    re.compile(r, re.IGNORECASE) for r in [
+        r"authentication.?fail",
+        r"permission.?denied",
+        r"invalid.?api.?key",
+        r"unauthorized",
+        r"403",
+        r"fatal.?error",
+        r"exception",
+        r"traceback",
+        r"command not found",
+        r"cannot find",
+    ]
+]
+
+
+# ---------------------------------------------------------------------------
+# Public helper
+# ---------------------------------------------------------------------------
+
+def probe_pane_state(lines: List[str]) -> AgentState:
+    """
+    Inspect *lines* (recent pane output) and return the most-likely AgentState.
+
+    Checks are ordered by severity: quota > needs_intervention > consent >
+    running > starting.  Returns DEAD when lines is empty.
+    """
+    if not lines:
+        return AgentState.DEAD
+
+    joined = "\n".join(lines)
+
+    # ── 1. Quota / rate-limit ────────────────────────────────────────────
+    if any(p.search(joined) for p in _QUOTA_PATTERNS):
+        logger.debug("probe_pane_state → QUOTA_EXCEEDED")
+        return AgentState.QUOTA_EXCEEDED
+
+    # ── 2. Fatal / intervention ──────────────────────────────────────────
+    if any(p.search(joined) for p in _INTERVENTION_PATTERNS):
+        logger.debug("probe_pane_state → NEEDS_INTERVENTION")
+        return AgentState.NEEDS_INTERVENTION
+
+    # ── 3. Consent / ToS screen ──────────────────────────────────────────
+    if any(p.search(joined) for p in _CONSENT_PATTERNS):
+        logger.debug("probe_pane_state → CONSENT_PENDING")
+        return AgentState.CONSENT_PENDING
+
+    # ── 4. Explicit prompt token (ready for input) ───────────────────────
+    for line in lines[-3:]:
+        if any(tok in line for tok in _PROMPT_TOKENS):
+            logger.debug("probe_pane_state → RUNNING (prompt token)")
+            return AgentState.RUNNING
+
+    # ── 5. Default: something is in the pane but not yet ready ──────────
+    logger.debug("probe_pane_state → STARTING (content present, not ready)")
+    return AgentState.STARTING
+
+
+# ---------------------------------------------------------------------------
+# PromptDetector
+# ---------------------------------------------------------------------------
 
 class PromptDetector:
     """
@@ -48,9 +172,9 @@ class PromptDetector:
 
     def __init__(
         self,
-        capture_fn:   Callable[[int], List[str]],
-        is_alive_fn:  Callable[[], bool],
-        timeout:      int = 120,
+        capture_fn:    Callable[[int], List[str]],
+        is_alive_fn:   Callable[[], bool],
+        timeout:       int   = 120,
         poll_interval: float = 2.0,
         prompt_tokens: tuple = _PROMPT_TOKENS,
     ) -> None:

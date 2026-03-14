@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import random
 import re
+import shutil
 import threading
 import time
 from datetime import datetime
@@ -35,6 +36,7 @@ from typing import Dict, List, Optional
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
+from core.archive import extract_summary
 from core.config import EngineConfig
 from core.exceptions import TaskFileError, WorkflowValidationError
 from core.state_manager import StateManager
@@ -99,12 +101,14 @@ class CardsPlanner:
         picker,            # engine.picker.CardsPicker
         dealer,            # engine.dealer.CardsDealer
         agent_id: str = "default",
+        archive=None,      # Optional[core.archive.ArchiveManager]
     ):
         self.config = config
         self._state = state
         self._picker = picker
         self._dealer = dealer
         self._agent_id = agent_id
+        self._archive = archive
 
         self._observer: Optional[Observer] = None
         self._stop_event = threading.Event()
@@ -253,8 +257,6 @@ class CardsPlanner:
 
     def _handle_completion(self, content: str) -> None:
         """Archive the finished task and advance to the next card."""
-        from core.archive import extract_summary
-
         self._ignoring_events = True
         summary = extract_summary(content)
 
@@ -295,9 +297,8 @@ class CardsPlanner:
             "completed_at": datetime.now().isoformat(),
         }
 
-        archive_mgr = getattr(self._dealer, "_archive", None)
-        if archive_mgr is not None:
-            archive_mgr.save_completed(
+        if self._archive is not None:
+            self._archive.save_completed(
                 alias=alias,
                 loop_id=self._current_loop_id,
                 task_content=content,
@@ -313,7 +314,6 @@ class CardsPlanner:
 
     def _archive_task_flat(self, content: str, alias: str) -> None:
         """Legacy flat-file archive (used when no ArchiveManager is injected)."""
-        import shutil
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         archive_dest = self.config.archive_path / f"{alias}_{timestamp}.md"
         try:
