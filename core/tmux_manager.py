@@ -23,16 +23,19 @@ probe_state()  — inspect live pane and return AgentState without side-effects
 Startup / "yolo" flow  (start and restart share the same _startup_sequence)
 ------------------------------------------------------------------------------
   1. Wait up to 30 s for *any* pane output.
-  2. Read the pane and classify state via probe_pane_state():
-       - CONSENT_PENDING  → send Ctrl+Y to accept ToS, then continue.
-       - QUOTA_EXCEEDED   → log error and abort.
-       - NEEDS_INTERVENTION → log error and abort.
-       - Anything else    → no early action; proceed to step 3.
-  3. Wait for the interface to be fully stable (PromptDetector: explicit
-     prompt token or two identical consecutive pane snapshots).
-  4. Send Ctrl+Y unconditionally → activates yolo mode so Gemini
-     auto-accepts tool calls without prompting.
-  5. Paste AGENT_LOOP.md into the input box and send Enter.
+  2. Classify pane state (probe_pane_state):
+       - QUOTA_EXCEEDED / NEEDS_INTERVENTION → abort immediately.
+       - CONSENT_PENDING → send Ctrl+Y (accept ToS), sleep 1 s, continue.
+       - Anything else   → no early action.
+  3. Wait for the UI input box to be stable — this is the gate.
+     Nothing is sent until PromptDetector confirms stability.
+  4. [separate] Send Ctrl+Y        → yolo mode (auto-accept tool calls).
+  5. [separate] sleep 0.5 s.
+  6. [separate] load-buffer        → load AGENT_LOOP.md into tmux buffer.
+  7. [separate] sleep 0.5 s.
+  8. [separate] paste-buffer       → paste into the input box.
+  9. [separate] sleep 0.5 s.
+ 10. [separate] send-keys Enter    → submit.
 """
 from __future__ import annotations
 
@@ -121,7 +124,8 @@ class TmuxManager(TmuxBase):
 
         ws = self._wsl_path(self._workspace)
         self._run("new-session", "-d", "-s", self._session, "-c", ws)
-        self._run("send-keys", "-t", self._session, self._agent_command, "Enter")
+        self._run("send-keys", "-t", self._session, self._agent_command, "")
+        self._run("send-keys", "-t", self._session, "", "Enter")
         logger.info(
             "tmux session '%s' created — running '%s'",
             self._session, self._agent_command,
@@ -165,7 +169,8 @@ class TmuxManager(TmuxBase):
             ws = self._wsl_path(self._workspace)
             self._run("new-session", "-d", "-s", self._session, "-c", ws)
 
-        self._run("send-keys", "-t", self._session, self._agent_command, "Enter")
+        self._run("send-keys", "-t", self._session, self._agent_command, "")
+        self._run("send-keys", "-t", self._session, "", "Enter")
         logger.info("Restart: launched '%s' in session '%s'", self._agent_command, self._session)
 
         self._starting = True
@@ -269,13 +274,18 @@ class TmuxManager(TmuxBase):
         Background thread startup sequence:
 
           1. Wait for any pane output (gemini booting).
-          2. If ToS/consent screen detected → send Ctrl+Y to accept.
-             If quota-exceeded or needs-intervention → abort (nothing to do).
-          3. Wait for the interface to be fully stable (prompt token or stable pane).
-          4. Send Ctrl+Y unconditionally — activates yolo mode so tool calls
-             are auto-accepted without prompting.
-          5. Paste AGENT_LOOP.md into the input box and send Enter.
-          6. Final state probe so status() is accurate immediately.
+          2. Check for blocking states early (quota / intervention → abort).
+             If consent screen is visible → send Ctrl+Y to accept ToS.
+          3. Wait for the UI input box to be stable (PromptDetector).
+             This is the gate — nothing is sent until stability is confirmed.
+          4. Send Ctrl+Y  (yolo mode — auto-accept tool calls).  [separate call]
+          5. Sleep 0.5 s.
+          6. Load AGENT_LOOP.md into the tmux buffer.            [separate call]
+          7. Sleep 0.5 s.
+          8. Paste buffer into the input box.                    [separate call]
+          9. Sleep 0.5 s.
+         10. Send Enter to submit.                               [separate call]
+         11. Final state probe so status() is accurate immediately.
 
         Sets self._starting = False when done (or on failure).
         """
@@ -288,25 +298,19 @@ class TmuxManager(TmuxBase):
                 )
                 return
 
-            # ── 2. Handle early-stage consent / blocking states ───────────
+            # ── 2. Early blocking-state check ─────────────────────────────
             lines = self.capture(30)
             state = probe_pane_state(lines)
 
-            if state == AgentState.CONSENT_PENDING:
-                self._run("send-keys", "-t", self._session, "C-y", "")
-                logger.info(
-                    "tmux session '%s': ToS consent screen → sent Ctrl+Y (accept)",
-                    self._session,
-                )
-                time.sleep(1)   # let the consent dismissal animate
-            elif state == AgentState.QUOTA_EXCEEDED:
+            if state == AgentState.QUOTA_EXCEEDED:
                 logger.error(
                     "tmux session '%s': quota exceeded — cannot start agent.",
                     self._session,
                 )
                 self._agent_state = AgentState.QUOTA_EXCEEDED
                 return
-            elif state == AgentState.NEEDS_INTERVENTION:
+
+            if state == AgentState.NEEDS_INTERVENTION:
                 logger.error(
                     "tmux session '%s': agent needs intervention. Pane:\n%s",
                     self._session, "\n".join(lines[-10:]),
@@ -314,34 +318,49 @@ class TmuxManager(TmuxBase):
                 self._agent_state = AgentState.NEEDS_INTERVENTION
                 return
 
-            # ── 3. Wait for the interface to be fully stable ──────────────
+            if state == AgentState.CONSENT_PENDING:
+                # ToS screen appears before the TUI — accept it, then fall
+                # through to wait for the UI box to become stable.
+                self._run("send-keys", "-t", self._session, "C-y", "")
+                logger.info(
+                    "tmux session '%s': ToS consent screen → sent Ctrl+Y (accept)",
+                    self._session,
+                )
+                time.sleep(1)   # let the consent animation settle
+
+            # ── 3. Wait for UI box stability — gate for all further sends ──
             self._detector.wait(session_name=self._session)
 
             if not self.is_alive():
                 logger.warning("tmux session '%s' died during startup", self._session)
                 return
 
-            # ── 4. Send Ctrl+Y — yolo mode (auto-accept tool calls) ───────
+            # ── 4. Ctrl+Y — yolo mode (auto-accept tool calls) ───────────
             self._run("send-keys", "-t", self._session, "C-y", "")
             logger.info(
-                "tmux session '%s': interface stable → sent Ctrl+Y (yolo mode)",
+                "tmux session '%s': UI stable → sent Ctrl+Y (yolo mode)",
                 self._session,
             )
             time.sleep(0.5)
 
-            # ── 5. Paste AGENT_LOOP.md and submit ─────────────────────────
-            self._paste_loop_file()
+            # ── 5. Load AGENT_LOOP.md into the tmux paste buffer ─────────
+            loop_path = self._wsl_path(self._loop_file)
+            self._run("load-buffer", loop_path)
+            logger.info("tmux session '%s': loop file loaded into buffer", self._session)
+            time.sleep(0.5)
 
-            # ── 6. Final probe ────────────────────────────────────────────
+            # ── 6. Paste buffer into the input box ────────────────────────
+            self._run("paste-buffer", "-t", self._session)
+            logger.info("tmux session '%s': buffer pasted into pane", self._session)
+            time.sleep(0.5)
+
+            # ── 7. Press Enter to submit ──────────────────────────────────
+            self._run("send-keys", "-t", self._session, "", "Enter")
+            logger.info("tmux session '%s': Enter sent — AGENT_LOOP.md submitted", self._session)
+
+            # ── 8. Final probe ────────────────────────────────────────────
             self._agent_state = probe_pane_state(self.capture(30))
 
         finally:
             self._starting = False
 
-    def _paste_loop_file(self) -> None:
-        """Load AGENT_LOOP.md into the tmux buffer and paste it into the pane."""
-        loop_path = self._wsl_path(self._loop_file)
-        self._run("load-buffer", loop_path)
-        self._run("paste-buffer", "-t", self._session)
-        self._run("send-keys", "-t", self._session, "", "Enter")
-        logger.info("AGENT_LOOP.md pasted into tmux session '%s'", self._session)
