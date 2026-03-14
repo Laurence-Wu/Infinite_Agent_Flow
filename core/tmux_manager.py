@@ -20,19 +20,19 @@ pause()        — send Esc (interrupts mid-generation without killing)
 restart()      — send Ctrl+C × 2 (keep session alive), relaunch agent, wait, paste loop file
 probe_state()  — inspect live pane and return AgentState without side-effects
 
-Startup / "yolo" consent flow
-------------------------------
-After launching the agent command the startup thread does NOT blindly send
-Ctrl+Y.  Instead it:
-
-  1. Waits up to 30 s for *any* pane output.
-  2. Reads the pane and calls probe_pane_state() to classify the current state.
-  3. Only when the state is CONSENT_PENDING does it send Ctrl+Y ("yolo event").
-  4. If the state is QUOTA_EXCEEDED or NEEDS_INTERVENTION the thread logs and
-     aborts without sending anything — the caller will see those states via
-     probe_state() / status().
-  5. After accepting consent it waits for the prompt (PromptDetector) and then
-     pastes AGENT_LOOP.md.
+Startup / "yolo" flow  (start and restart share the same _startup_sequence)
+------------------------------------------------------------------------------
+  1. Wait up to 30 s for *any* pane output.
+  2. Read the pane and classify state via probe_pane_state():
+       - CONSENT_PENDING  → send Ctrl+Y to accept ToS, then continue.
+       - QUOTA_EXCEEDED   → log error and abort.
+       - NEEDS_INTERVENTION → log error and abort.
+       - Anything else    → no early action; proceed to step 3.
+  3. Wait for the interface to be fully stable (PromptDetector: explicit
+     prompt token or two identical consecutive pane snapshots).
+  4. Send Ctrl+Y unconditionally → activates yolo mode so Gemini
+     auto-accepts tool calls without prompting.
+  5. Paste AGENT_LOOP.md into the input box and send Enter.
 """
 from __future__ import annotations
 
@@ -264,53 +264,23 @@ class TmuxManager(TmuxBase):
             time.sleep(0.5)
         return False
 
-    def _send_yolo_consent(self) -> bool:
-        """
-        Verify the pane currently shows the consent/ToS screen, then send Ctrl+Y.
-
-        Returns True when Ctrl+Y was sent, False when the pane state did not
-        confirm CONSENT_PENDING (nothing is sent in that case).
-        """
-        lines = self.capture(30)
-        state = probe_pane_state(lines)
-
-        if state == AgentState.CONSENT_PENDING:
-            self._run("send-keys", "-t", self._session, "C-y", "")
-            logger.info(
-                "tmux session '%s': consent screen confirmed → sent Ctrl+Y (yolo event)",
-                self._session,
-            )
-            return True
-
-        if state == AgentState.QUOTA_EXCEEDED:
-            logger.error(
-                "tmux session '%s': quota exceeded — cannot start agent. "
-                "Check your Gemini API quota.",
-                self._session,
-            )
-        elif state == AgentState.NEEDS_INTERVENTION:
-            logger.error(
-                "tmux session '%s': agent needs intervention (auth error or fatal). "
-                "Pane content:\n%s",
-                self._session, "\n".join(lines[-10:]),
-            )
-        else:
-            logger.warning(
-                "tmux session '%s': expected CONSENT_PENDING but got %s — "
-                "skipping Ctrl+Y. Pane content:\n%s",
-                self._session, state.value, "\n".join(lines[-10:]),
-            )
-        return False
-
     def _startup_sequence(self) -> None:
         """
-        Background thread: detect consent screen → send Ctrl+Y only when
-        confirmed → wait for prompt → paste loop file.
+        Background thread startup sequence:
+
+          1. Wait for any pane output (gemini booting).
+          2. If ToS/consent screen detected → send Ctrl+Y to accept.
+             If quota-exceeded or needs-intervention → abort (nothing to do).
+          3. Wait for the interface to be fully stable (prompt token or stable pane).
+          4. Send Ctrl+Y unconditionally — activates yolo mode so tool calls
+             are auto-accepted without prompting.
+          5. Paste AGENT_LOOP.md into the input box and send Enter.
+          6. Final state probe so status() is accurate immediately.
 
         Sets self._starting = False when done (or on failure).
         """
         try:
-            # 1. Wait until gemini has printed anything at all
+            # ── 1. Wait until gemini has printed anything ─────────────────
             if not self._wait_for_any_output(timeout=30):
                 logger.warning(
                     "tmux session '%s': no output after 30 s — aborting startup",
@@ -318,29 +288,51 @@ class TmuxManager(TmuxBase):
                 )
                 return
 
-            # 2. Check pane state and send Ctrl+Y *only* when consent screen visible
-            consent_sent = self._send_yolo_consent()
+            # ── 2. Handle early-stage consent / blocking states ───────────
+            lines = self.capture(30)
+            state = probe_pane_state(lines)
 
-            # 3. If agent is in a broken state, abort now
-            if not consent_sent:
-                state = probe_pane_state(self.capture(30))
-                if state in (AgentState.QUOTA_EXCEEDED, AgentState.NEEDS_INTERVENTION):
-                    self._agent_state = state
-                    return
-                # Otherwise (STARTING / RUNNING / etc.) — let it proceed; maybe
-                # it didn't show a consent screen on this run (already accepted).
+            if state == AgentState.CONSENT_PENDING:
+                self._run("send-keys", "-t", self._session, "C-y", "")
+                logger.info(
+                    "tmux session '%s': ToS consent screen → sent Ctrl+Y (accept)",
+                    self._session,
+                )
+                time.sleep(1)   # let the consent dismissal animate
+            elif state == AgentState.QUOTA_EXCEEDED:
+                logger.error(
+                    "tmux session '%s': quota exceeded — cannot start agent.",
+                    self._session,
+                )
+                self._agent_state = AgentState.QUOTA_EXCEEDED
+                return
+            elif state == AgentState.NEEDS_INTERVENTION:
+                logger.error(
+                    "tmux session '%s': agent needs intervention. Pane:\n%s",
+                    self._session, "\n".join(lines[-10:]),
+                )
+                self._agent_state = AgentState.NEEDS_INTERVENTION
+                return
 
-            # 4. Wait for the agent to be fully ready
+            # ── 3. Wait for the interface to be fully stable ──────────────
             self._detector.wait(session_name=self._session)
 
             if not self.is_alive():
                 logger.warning("tmux session '%s' died during startup", self._session)
                 return
 
-            # 5. Paste the loop file
+            # ── 4. Send Ctrl+Y — yolo mode (auto-accept tool calls) ───────
+            self._run("send-keys", "-t", self._session, "C-y", "")
+            logger.info(
+                "tmux session '%s': interface stable → sent Ctrl+Y (yolo mode)",
+                self._session,
+            )
+            time.sleep(0.5)
+
+            # ── 5. Paste AGENT_LOOP.md and submit ─────────────────────────
             self._paste_loop_file()
 
-            # 6. Final probe so status() is accurate immediately after startup
+            # ── 6. Final probe ────────────────────────────────────────────
             self._agent_state = probe_pane_state(self.capture(30))
 
         finally:
