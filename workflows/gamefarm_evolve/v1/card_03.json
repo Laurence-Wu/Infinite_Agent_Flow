@@ -1,0 +1,16 @@
+{
+  "id": "card_03",
+  "loop_id": "main",
+  "workflow": "gamefarm_evolve",
+  "version": "v1",
+  "next_card": "card_04",
+  "branches": {
+    "asset": "card_04"
+  },
+  "metadata": {
+    "priority": "normal",
+    "tags": ["asset-scraping", "research", "kenney", "opengameart"],
+    "max_time_seconds": 360
+  },
+  "instruction": "## card_03 · Asset Scout\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\GameFarmerJS`\n\nRead `GAMEFARM_SPRINT.md`.\n\n**If `Sprint Type` is `code`**: This card is a NO-OP. Write a one-line note at the top of `GAMEFARM_ASSETS.md`: `SKIPPED: code sprint cycle — no asset work this iteration.` Then write `![next]!` immediately.\n\n**If `Sprint Type` is `asset`**: Execute the full asset scout below, then write `![next:asset]!`.\n\n---\n\n### Asset Scout (asset sprints only)\n\n#### Phase 1 — Inventory Existing Assets\n\nList all files under `assets/image/` by subdirectory:\n- `crops/` — currently: melon, wheat, sugarcane, eggplant, chili (7 stages each, 0-6)\n- `ground/` — grass, grass_side, grass_corner, grass_farm\n- `static/` — flower0/1/2, plant0, rock0, tree0/1, trunk0\n- `fence/` — door_wood_close, fence_wood_1 through 8\n- `icon/` — various icons\n\nIdentify gaps: missing crop varieties, missing decorations.\n\n#### Phase 2 — Scout Free Sprite Sources\n\nSearch these sources for freely licensed farming sprite packs (CC0, CC-BY, or MIT only):\n\n1. **kenney.nl** — search for \"Tiny Farm\", \"Farming\", \"Fruits\", or \"RPG\" packs. Record pack name, license, download URL, and which sprites map to GameFarmerJS crop/decoration IDs.\n\n2. **opengameart.org** — search `farming sprites pixel` or `crop tileset`. Target: small PNGs with transparent backgrounds, 16x16 or 32x32 tiles. Record: title, author, license, URL, tile dimensions.\n\n3. **itch.io** — search `free farming tileset` filtered to \"Free\" price. Record any CC0 packs.\n\nFor each candidate, evaluate:\n- License: CC0 (ideal) > CC-BY (acceptable) > others (skip)\n- Style compatibility: pixel art, top-down, color tone matching existing GameFarmerJS crops\n- Usable sprites for: carrot, corn, tomato, pumpkin, hay bale, mushroom, well\n\n#### Phase 3 — Download and Stage Assets\n\nFor the top 1-2 packs found:\n1. Download the pack or individual sprites\n2. Place in:\n   - New crops → `assets/image/crops/`\n   - New decorations → `assets/image/static/`\n3. Follow naming convention: `<cropname>0.png` through `<cropname>6.png` for crops, `<name>0.png` for decorations\n4. If a spritesheet was downloaded, crop individual tiles and save as separate PNGs\n5. Verify files are correctly sized (~32-64px matching existing assets)\n\n#### Phase 4 — Write GAMEFARM_ASSETS.md\n\n```\n# GameFarm Asset Scout Report\n\n## Cycle N — <date>\n\n## Sources Checked\n| Source | Pack | License | URL |\n|--------|------|---------|-----|\n\n## Assets Staged\n| Filename | Type | Stages | Source | Attribution |\n|----------|------|--------|--------|-------------|\n\n## Assets Skipped\n| Name | Reason |\n|------|--------|\n\n## Ready for Integration\n<list element IDs and display names for card_04 to register>\n```\n\nWrite `![next:asset]!` when `GAMEFARM_ASSETS.md` is complete and assets are staged."
+}

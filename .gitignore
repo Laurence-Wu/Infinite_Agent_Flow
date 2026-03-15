@@ -56,6 +56,12 @@ workflows/fastdllm_viz_api/v1/*
 !workflows/fastdllm_viz_api/v1/*.json
 !workflows/fastdllm_viz_api/v1/guidance.md
 
+!workflows/gamefarm_evolve
+workflows/gamefarm_evolve/*
+!workflows/gamefarm_evolve/v1
+workflows/gamefarm_evolve/v1/*
+!workflows/gamefarm_evolve/v1/*.json
+
 # IDE
 .vscode/
 .idea/
