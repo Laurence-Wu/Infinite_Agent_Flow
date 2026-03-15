@@ -1,10 +1,20 @@
 {
   "ngrok_auth": "user:password",
-  "workflow": "sample_workflow",
   "version": "v1",
   "port": 5000,
+
   "workspace_1": "./workspace",
-  "workspace_2": "./workspace2",
+  "workflow_1": "sample_workflow",
   "agent_id_1": "agent_1",
-  "agent_id_2": "agent_2"
+  "agent_command_1": "gemini",
+
+  "workspace_2": "./workspace2",
+  "workflow_2": "sample_workflow",
+  "agent_id_2": "agent_2",
+  "agent_command_2": "gemini",
+
+  "workspace_3": "./workspace3",
+  "workflow_3": "sample_workflow",
+  "agent_id_3": "agent_3",
+  "agent_command_3": "qwen"
 }

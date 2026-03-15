@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# start_ngrok.sh — Launch CardDealer with ngrok and auto-restart.
-# Reads credentials and config from configure_user.json (gitignored).
-# If no primary agent is running → start Agent 1 (server + ngrok).
-# If Agent 1 is already up      → start Agent 2 (attached, no server).
+# start_ngrok.sh — Launch all 3 CardDealer agents with ngrok and auto-restart.
+# Agent 1 (fast_dllm):   gemini  @ Fast-dllm       — primary server + ngrok
+# Agent 2 (job_war_room): gemini  @ Job-war-room    — attached
+# Agent 3 (game_farmers): qwen    @ GameFarmerJS    — attached
 
-CONFIG="$(dirname "$0")/configure_user.json"
+set -euo pipefail
+
+CONFIG="$(cd "$(dirname "$0")" && pwd)/configure_user.json"
 
 if [ ! -f "$CONFIG" ]; then
   echo "ERROR: $CONFIG not found."
@@ -12,70 +14,114 @@ if [ ! -f "$CONFIG" ]; then
   exit 1
 fi
 
-# Parse JSON with python (no jq dependency needed)
-read_cfg() { python -c "import json,sys; d=json.load(open('$CONFIG')); print(d.get('$1',''))" ; }
+read_cfg() { python3 -c "import json; d=json.load(open('$CONFIG')); print(d.get('$1',''))" ; }
 
 NGROK_AUTH="$(read_cfg ngrok_auth)"
-WORKFLOW="$(read_cfg workflow)"
 VERSION="$(read_cfg version)"
 PORT="$(read_cfg port)"
-WORKSPACE_1="$(read_cfg workspace_1)"
-WORKSPACE_2="$(read_cfg workspace_2)"
-AGENT_ID_1="$(read_cfg agent_id_1)"
-AGENT_ID_2="$(read_cfg agent_id_2)"
-AGENT_CMD_1="$(read_cfg agent_command_1)"
-AGENT_CMD_2="$(read_cfg agent_command_2)"
 
-# Check whether Agent 1's Flask server is already listening on $PORT
-if ! curl -s --max-time 2 "http://localhost:${PORT}/api/agents" > /dev/null 2>&1; then
-  echo "No primary agent detected on port ${PORT} — starting Agent 1 (server + ngrok)..."
-  
+WORKSPACE_1="$(read_cfg workspace_1)"; WORKFLOW_1="$(read_cfg workflow_1)"; AGENT_ID_1="$(read_cfg agent_id_1)"; AGENT_CMD_1="$(read_cfg agent_command_1)"
+WORKSPACE_2="$(read_cfg workspace_2)"; WORKFLOW_2="$(read_cfg workflow_2)"; AGENT_ID_2="$(read_cfg agent_id_2)"; AGENT_CMD_2="$(read_cfg agent_command_2)"
+WORKSPACE_3="$(read_cfg workspace_3)"; WORKFLOW_3="$(read_cfg workflow_3)"; AGENT_ID_3="$(read_cfg agent_id_3)"; AGENT_CMD_3="$(read_cfg agent_command_3)"
+
+echo "=== Infinite Agent Flow — 3-agent launch ==="
+echo "  Agent 1: ${AGENT_ID_1} | ${WORKFLOW_1}/${VERSION} | cmd=${AGENT_CMD_1:-default}"
+echo "  Agent 2: ${AGENT_ID_2} | ${WORKFLOW_2}/${VERSION} | cmd=${AGENT_CMD_2:-default}"
+echo "  Agent 3: ${AGENT_ID_3} | ${WORKFLOW_3}/${VERSION} | cmd=${AGENT_CMD_3:-default}"
+echo ""
+
+# ── Kill all child processes on Ctrl+C / exit ─────────────────────────────────
+trap 'echo ""; echo "Shutting down all agents..."; kill 0 2>/dev/null; exit 0' EXIT INT TERM
+
+# ── Port 3000 cleanup ─────────────────────────────────────────────────────────
+cleanup_port_3000() {
+  if lsof -ti :3000 > /dev/null 2>&1; then
+    echo "[boot] Port 3000 in use — killing..."
+    lsof -ti :3000 | xargs kill -9 2>/dev/null || true
+  fi
+  pkill -9 -f next-server 2>/dev/null || true
+  pkill -9 -f "next dev"  2>/dev/null || true
+  echo "[boot] Waiting for port 3000..."
+  for i in $(seq 1 15); do
+    lsof -ti :3000 > /dev/null 2>&1 || break
+    sleep 1
+  done
+}
+
+# ── Wait for Flask API ────────────────────────────────────────────────────────
+wait_for_server() {
+  echo "[boot] Waiting for Flask server on port ${PORT}..."
+  for i in $(seq 1 30); do
+    curl -s --max-time 1 "http://localhost:${PORT}/api/dealers" > /dev/null 2>&1 && \
+      echo "[boot] Server ready." && return 0
+    sleep 2
+  done
+  echo "[boot] WARNING: server did not respond after 60s — starting attached agents anyway."
+}
+
+# ── Agent 1: primary (server + ngrok) ────────────────────────────────────────
+cleanup_port_3000
+(
   while true; do
-    # 1. Clean up port 3000 EVERY time the loop restarts
-    if lsof -ti :3000 > /dev/null; then
-      echo "Port 3000 is in use — cleaning up..."
-      lsof -ti :3000 | xargs kill -9 2>/dev/null || true
-    fi
-
-    # 2. Aggressive backup to kill invisible Next.js child processes
-    # next-server renames itself away from "node" so must be killed separately
-    pkill -9 -f node 2>/dev/null || true
-    pkill -9 -f next-server 2>/dev/null || true
-
-    # 3. Wait until port 3000 is fully released before starting
-    echo "Waiting for port 3000 to be released..."
-    for i in $(seq 1 15); do
-      lsof -ti :3000 > /dev/null 2>&1 || break
-      sleep 1
-    done
-    if lsof -ti :3000 > /dev/null 2>&1; then
-      echo "WARNING: port 3000 still in use after 15s, proceeding anyway..."
-    fi
-
-    # 4. Start the orchestrator
-    python orchestrator.py \
-      --workspace     "${WORKSPACE_1}" \
-      --workflow      "${WORKFLOW}" \
-      --version       "${VERSION}" \
-      --port          "${PORT}" \
-      --ngrok-auth    "${NGROK_AUTH}" \
-      --agent-id      "${AGENT_ID_1}" \
-      ${AGENT_CMD_1:+--agent-command "${AGENT_CMD_1}"}
-
-    echo "Agent 1 exited — restarting in 10s..."
+    echo "[Agent 1 / ${AGENT_ID_1}] Starting — gemini @ ${WORKSPACE_1}"
+    ARGS=(
+      python3 orchestrator.py
+      --workspace  "${WORKSPACE_1}"
+      --workflow   "${WORKFLOW_1}"
+      --version    "${VERSION}"
+      --port       "${PORT}"
+      --agent-id   "${AGENT_ID_1}"
+      --auto-start
+    )
+    [ -n "${NGROK_AUTH}" ]  && ARGS+=(--ngrok-auth    "${NGROK_AUTH}")
+    [ -n "${AGENT_CMD_1}" ] && ARGS+=(--agent-command "${AGENT_CMD_1}")
+    "${ARGS[@]}" || true
+    echo "[Agent 1 / ${AGENT_ID_1}] Exited — restarting in 10s..."
     sleep 10
   done
-else
-  echo "Agent 1 already running on port ${PORT} — starting Agent 2 (attached)..."
+) &
+
+wait_for_server
+
+# ── Agent 2: attached ─────────────────────────────────────────────────────────
+(
   while true; do
-    python orchestrator.py \
-      --workspace     "${WORKSPACE_2}" \
-      --workflow      "${WORKFLOW}" \
-      --version       "${VERSION}" \
-      --attach        "http://localhost:${PORT}" \
-      --agent-id      "${AGENT_ID_2}" \
-      ${AGENT_CMD_2:+--agent-command "${AGENT_CMD_2}"}
-    echo "Agent 2 exited — restarting in 10s..."
+    echo "[Agent 2 / ${AGENT_ID_2}] Starting — gemini @ ${WORKSPACE_2}"
+    ARGS=(
+      python3 orchestrator.py
+      --workspace "${WORKSPACE_2}"
+      --workflow  "${WORKFLOW_2}"
+      --version   "${VERSION}"
+      --attach    "http://localhost:${PORT}"
+      --agent-id  "${AGENT_ID_2}"
+      --auto-start
+    )
+    [ -n "${AGENT_CMD_2}" ] && ARGS+=(--agent-command "${AGENT_CMD_2}")
+    "${ARGS[@]}" || true
+    echo "[Agent 2 / ${AGENT_ID_2}] Exited — restarting in 10s..."
     sleep 10
   done
-fi
+) &
+
+# ── Agent 3: attached ─────────────────────────────────────────────────────────
+(
+  while true; do
+    echo "[Agent 3 / ${AGENT_ID_3}] Starting — qwen @ ${WORKSPACE_3}"
+    ARGS=(
+      python3 orchestrator.py
+      --workspace "${WORKSPACE_3}"
+      --workflow  "${WORKFLOW_3}"
+      --version   "${VERSION}"
+      --attach    "http://localhost:${PORT}"
+      --agent-id  "${AGENT_ID_3}"
+      --auto-start
+    )
+    [ -n "${AGENT_CMD_3}" ] && ARGS+=(--agent-command "${AGENT_CMD_3}")
+    "${ARGS[@]}" || true
+    echo "[Agent 3 / ${AGENT_ID_3}] Exited — restarting in 10s..."
+    sleep 10
+  done
+) &
+
+echo "[boot] All 3 agents running. Press Ctrl+C to stop everything."
+wait

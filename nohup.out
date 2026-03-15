@@ -1,0 +1,232 @@
+=== Infinite Agent Flow — 3-agent launch ===
+  Agent 1: fast_dllm | fastdllm_viz_api/v1 | cmd=gemini
+  Agent 2: job_war_room | jobscrap_v2/v1 | cmd=gemini
+  Agent 3: game_farmers | gamefarm_evolve/v1 | cmd=qwen
+
+[boot] Waiting for port 3000...
+[boot] Waiting for Flask server on port 5000...
+[Agent 1 / fast_dllm] Starting — gemini @ /home/xwu/agent_playground/Fast-dllm
+23:58:51 [INFO] core.dealer_manager: Registered dealer fast_dllm (workspace=/home/xwu/agent_playground/Fast-dllm)
+23:58:51 [INFO] orchestrator: Dashboard running at http://localhost:5000
+ * Serving Flask app 'web.app'
+ * Debug mode: off
+23:58:51 [INFO] orchestrator: Next.js frontend started at http://localhost:3000 (proxying to port 5000)
+23:58:51 [INFO] orchestrator: ngrok tunnel starting… fetching public URL.
+23:58:51 [INFO] orchestrator: Auto-starting tmux session 'gemini_Fast-dllm' with command 'gemini'
+23:58:51 [INFO] orchestrator: Starting workflow: fastdllm_viz_api/v1 → workspace: /home/xwu/agent_playground/Fast-dllm
+23:58:51 [INFO] werkzeug: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+23:58:51 [INFO] werkzeug: [33mPress CTRL+C to quit[0m
+23:58:51 [INFO] engine.dealer: Dealt card card_01 (1/13) for workflow fastdllm_viz_api/v1
+23:58:51 [INFO] engine.planner: Workflow fastdllm_viz_api/v1 started with card card_01 (agent=fast_dllm)
+23:58:51 [INFO] core.tmux_manager: tmux session 'gemini_Fast-dllm' created — running 'gemini'
+
+> infinite-agent-flow-ui@0.1.0 dev
+> next dev --port 3000 --hostname 0.0.0.0
+
+  ▲ Next.js 14.2.5
+  - Local:        http://localhost:3000
+  - Network:      http://0.0.0.0:3000
+
+ ✓ Starting...
+23:58:52 [INFO] orchestrator: ngrok public URL: https://d8c7-2610-148-2059-2000-85c0-cef7-4c8d-ed3c.ngrok-free.app  (basic-auth protected)
+23:58:53 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:58:53] "GET /api/dealers HTTP/1.1" 200 -
+[boot] Server ready.
+[boot] All 3 agents running. Press Ctrl+C to stop everything.
+[Agent 2 / job_war_room] Starting — gemini @ /home/xwu/agent_playground/Job-war-room
+[Agent 3 / game_farmers] Starting — qwen @ /home/xwu/agent_playground/GameFarmerJS
+23:58:53 [INFO] orchestrator: Peer-attach mode: reporting state to http://localhost:5000 as agent 'game_farmers'
+23:58:53 [INFO] orchestrator: Auto-starting tmux session 'qwen_GameFarmerJS' with command 'qwen'
+23:58:53 [INFO] orchestrator: Starting workflow: gamefarm_evolve/v1 → workspace: /home/xwu/agent_playground/GameFarmerJS
+23:58:53 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:58:53] "POST /api/report-state HTTP/1.1" 200 -
+23:58:53 [INFO] engine.dealer: Dealt card card_01 (1/8) for workflow gamefarm_evolve/v1
+23:58:53 [INFO] engine.planner: Workflow gamefarm_evolve/v1 started with card card_01 (agent=game_farmers)
+23:58:53 [INFO] core.tmux_manager: tmux session 'qwen_GameFarmerJS' created — running 'qwen'
+23:58:53 [INFO] orchestrator: Peer-attach mode: reporting state to http://localhost:5000 as agent 'job_war_room'
+23:58:53 [INFO] orchestrator: Auto-starting tmux session 'gemini_Job-war-room' with command 'gemini'
+23:58:53 [INFO] orchestrator: Starting workflow: jobscrap_v2/v1 → workspace: /home/xwu/agent_playground/Job-war-room
+23:58:53 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:58:53] "POST /api/report-state HTTP/1.1" 200 -
+23:58:53 [INFO] engine.dealer: Dealt card apple (1/17) for workflow jobscrap_v2/v1
+23:58:53 [INFO] engine.planner: Workflow jobscrap_v2/v1 started with card apple (agent=job_war_room)
+23:58:53 [INFO] core.tmux_manager: tmux session 'gemini_Job-war-room' created — running 'gemini'
+ ✓ Ready in 2.2s
+23:58:59 [INFO] core.tmux_manager: tmux session 'qwen_GameFarmerJS': UI box visible → sent yolo keys ['BTab', 'BTab']
+23:58:59 [INFO] core.tmux_manager: tmux session 'qwen_GameFarmerJS': loop file loaded into buffer
+23:59:00 [INFO] core.tmux_manager: tmux session 'qwen_GameFarmerJS': buffer pasted into pane
+23:59:00 [INFO] core.tmux_manager: tmux session 'qwen_GameFarmerJS': Enter sent — AGENT_LOOP.md submitted
+23:59:03 [INFO] core.tmux_manager: tmux session 'gemini_Fast-dllm': UI box visible → sent yolo keys ['C-y']
+23:59:04 [INFO] core.tmux_manager: tmux session 'gemini_Fast-dllm': loop file loaded into buffer
+23:59:05 [INFO] core.tmux_manager: tmux session 'gemini_Fast-dllm': buffer pasted into pane
+23:59:05 [INFO] core.tmux_manager: tmux session 'gemini_Job-war-room': UI box visible → sent yolo keys ['C-y']
+23:59:05 [INFO] core.tmux_manager: tmux session 'gemini_Fast-dllm': Enter sent — AGENT_LOOP.md submitted
+23:59:05 [INFO] core.tmux_manager: tmux session 'gemini_Job-war-room': loop file loaded into buffer
+23:59:06 [INFO] core.tmux_manager: tmux session 'gemini_Job-war-room': buffer pasted into pane
+23:59:06 [INFO] core.tmux_manager: tmux session 'gemini_Job-war-room': Enter sent — AGENT_LOOP.md submitted
+23:59:33 [INFO] engine.planner: ![next]! detected — advancing workflow (agent=fast_dllm).
+23:59:33 [INFO] engine.dealer: Dealt card card_02 (2/13) for workflow fastdllm_viz_api/v1
+23:59:33 [INFO] engine.planner: Advanced to card card_02 (2/13) (agent=fast_dllm)
+ ○ Compiling / ...
+ ✓ Compiled / in 2.6s (1550 modules)
+ GET / 200 in 2992ms
+23:59:43 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:43] "GET /api/workflows HTTP/1.1" 200 -
+23:59:43 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:43] "GET /api/dealers HTTP/1.1" 200 -
+23:59:43 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:43] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+23:59:43 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:43] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+23:59:43 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:43] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+23:59:43 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:43] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+23:59:43 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:43] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+23:59:43 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:43] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+23:59:48 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:48] "GET /api/workflows HTTP/1.1" 200 -
+23:59:48 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:48] "GET /api/dealers HTTP/1.1" 200 -
+23:59:48 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:48] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+23:59:48 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:48] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+23:59:48 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:48] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+23:59:48 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:48] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+23:59:48 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:48] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+23:59:48 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:48] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+23:59:52 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:52] "GET /api/dealers HTTP/1.1" 200 -
+23:59:53 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:53] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+23:59:53 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:53] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+23:59:53 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:53] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+23:59:53 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:53] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+23:59:53 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:53] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+23:59:53 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:53] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+23:59:54 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:54] "GET /api/agent HTTP/1.1" 200 -
+23:59:55 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:55] "GET /api/dealers HTTP/1.1" 200 -
+23:59:56 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:56] "GET /api/workflows HTTP/1.1" 200 -
+23:59:56 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:56] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+23:59:56 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:56] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+23:59:56 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:56] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+23:59:56 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:56] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+23:59:56 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:56] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+23:59:56 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:56] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+23:59:57 [INFO] engine.planner: ![next]! detected — advancing workflow (agent=fast_dllm).
+23:59:57 [INFO] engine.dealer: Dealt card card_03 (3/13) for workflow fastdllm_viz_api/v1
+23:59:57 [INFO] engine.planner: Advanced to card card_03 (3/13) (agent=fast_dllm)
+23:59:58 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:58] "GET /api/dealers HTTP/1.1" 200 -
+23:59:58 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:58] "GET /api/agent HTTP/1.1" 200 -
+23:59:59 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:59] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+23:59:59 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:59] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+23:59:59 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:59] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+23:59:59 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:59] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+23:59:59 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:59] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+23:59:59 [INFO] werkzeug: 127.0.0.1 - - [14/Mar/2026 23:59:59] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:01 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:01] "GET /api/dealers HTTP/1.1" 200 -
+00:00:02 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:02] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:02 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:02] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:02 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:02] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:02 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:02] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:02 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:02] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:02 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:02] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:03 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:03] "GET /api/agent HTTP/1.1" 200 -
+00:00:04 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:04] "GET /api/dealers HTTP/1.1" 200 -
+00:00:05 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:05] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:05 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:05] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:05 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:05] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:05 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:05] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:05 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:05] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:06 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:06] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:07 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:07] "GET /api/dealers HTTP/1.1" 200 -
+00:00:08 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:08] "GET /api/agent HTTP/1.1" 200 -
+00:00:08 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:08] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:08 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:08] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:08 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:08] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:08 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:08] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:08 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:08] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:09 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:09] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:11 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:11] "GET /api/dealers HTTP/1.1" 200 -
+00:00:11 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:11] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:12 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:12] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:12 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:12] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:12 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:12] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:12 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:12] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:12 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:12] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:12 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:12] "GET /api/agent HTTP/1.1" 200 -
+00:00:13 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:13] "GET /api/workflows HTTP/1.1" 200 -
+00:00:14 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:14] "GET /api/dealers HTTP/1.1" 200 -
+00:00:15 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:15] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:15 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:15] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:15 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:15] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:15 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:15] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:15 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:15] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:15 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:15] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:17 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:17] "GET /api/dealers HTTP/1.1" 200 -
+00:00:17 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:17] "GET /api/agent HTTP/1.1" 200 -
+00:00:18 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:18] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:18 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:18] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:18 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:18] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:18 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:18] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:18 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:18] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:18 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:18] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:20 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:20] "GET /api/dealers HTTP/1.1" 200 -
+00:00:21 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:21] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:21 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:21] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:21 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:21] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:21 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:21] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:21 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:21] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:21 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:21] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:23 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:23] "GET /api/agent HTTP/1.1" 200 -
+00:00:23 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:23] "GET /api/dealers HTTP/1.1" 200 -
+00:00:24 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:24] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:24 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:24] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:24 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:24] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:24 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:24] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:24 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:24] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:25 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:25] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:26 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:26] "GET /api/dealers HTTP/1.1" 200 -
+00:00:27 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:27] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:27 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:27] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:27 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:27] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:27 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:27] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:27 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:27] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:28 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:28] "GET /api/agent HTTP/1.1" 200 -
+00:00:28 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:28] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:29 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:29] "GET /api/dealers HTTP/1.1" 200 -
+00:00:30 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:30] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:30 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:30] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:30 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:30] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:30 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:30] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:30 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:30] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:31 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:31] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:32 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:32] "GET /api/dealers HTTP/1.1" 200 -
+00:00:33 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:33] "GET /api/agent HTTP/1.1" 200 -
+00:00:33 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:33] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:33 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:33] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:33 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:33] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:33 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:33] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:34 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:34] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:34 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:34] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:35 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:35] "GET /api/dealers HTTP/1.1" 200 -
+00:00:36 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:36] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:36 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:36] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:36 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:36] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:36 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:36] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:37 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:37] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:37 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:37] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:38 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:38] "GET /api/agent HTTP/1.1" 200 -
+00:00:39 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:39] "GET /api/dealers HTTP/1.1" 200 -
+00:00:39 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:39] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:39 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:39] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:40 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:40] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:40 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:40] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:40 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:40] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:41 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:41] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:41 [INFO] engine.planner: ![next]! detected — advancing workflow (agent=fast_dllm).
+00:00:41 [INFO] engine.dealer: Dealt card card_04 (4/13) for workflow fastdllm_viz_api/v1
+00:00:41 [INFO] engine.planner: Advanced to card card_04 (4/13) (agent=fast_dllm)
+00:00:42 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:42] "GET /api/dealers HTTP/1.1" 200 -
+00:00:42 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:42] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:43 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:43] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:43 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:43] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:43 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:43] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:43 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:43] "GET /api/workflows HTTP/1.1" 200 -
+00:00:43 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:43] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:43 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:43] "GET /api/agent HTTP/1.1" 200 -
+00:00:44 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:44] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
+00:00:45 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:45] "GET /api/dealers HTTP/1.1" 200 -
+00:00:46 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:46] "GET /api/agent/job_war_room/workspace-scan HTTP/1.1" 200 -
+00:00:46 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:46] "GET /api/status?agent_id=fast_dllm HTTP/1.1" 200 -
+00:00:46 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:46] "GET /api/agent/game_farmers/workspace-scan HTTP/1.1" 200 -
+00:00:46 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:46] "GET /api/status?agent_id=job_war_room HTTP/1.1" 200 -
+00:00:46 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:46] "GET /api/status?agent_id=game_farmers HTTP/1.1" 200 -
+00:00:47 [INFO] werkzeug: 127.0.0.1 - - [15/Mar/2026 00:00:47] "GET /api/agent/fast_dllm/workspace-scan HTTP/1.1" 200 -
