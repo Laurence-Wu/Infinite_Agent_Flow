@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { Terminal } from 'lucide-react'
 import { lineClass } from '@/lib/formatters'
 
-export default function LogTerminal({ lines }: { lines: string[] }) {
+export default function LogTerminal({ lines, compact = false }: { lines: string[]; compact?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom whenever lines change
@@ -27,7 +27,7 @@ export default function LogTerminal({ lines }: { lines: string[] }) {
       </div>
 
       {/* Terminal body */}
-      <div ref={ref} className="log-terminal">
+      <div ref={ref} className="log-terminal" style={compact ? { height: '140px' } : undefined}>
         {lines.length === 0 ? (
           <div className="text-slate-600 italic">No log output yet.</div>
         ) : (

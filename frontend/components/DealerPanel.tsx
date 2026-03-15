@@ -1,6 +1,7 @@
 'use client'
 
-import { Pause, Play, Square, RefreshCw, CheckSquare, Clock, ScanLine, AlertTriangle } from 'lucide-react'
+import { useState } from 'react'
+import { Pause, Play, Square, RefreshCw, CheckSquare, Clock, ScanLine, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
 import type { DealerEntry } from '@/lib/types'
 import { STATUS_DOT, STATUS_BADGE, CONTROL_BTN, CONTROL_BTN_BASE } from '@/lib/statusConfig'
 import { useSnapshot }      from '@/lib/hooks/useSnapshot'
@@ -14,6 +15,7 @@ import HistoryFeed     from '@/components/HistoryFeed'
 import WorkspaceScan   from '@/components/WorkspaceScan'
 import ExpandableCard  from '@/components/ExpandableCard'
 import AgentPanel      from '@/components/AgentPanel'
+import { useSettings } from '@/lib/context/SettingsContext'
 
 // ── Compact stat tile ─────────────────────────────────────────────────────────
 function MiniStat({ value, label, icon }: { value: string | number; label: string; icon: React.ReactNode }) {
@@ -29,6 +31,9 @@ function MiniStat({ value, label, icon }: { value: string | number; label: strin
 const BTN_NEUTRAL = 'bg-slate-700/40 hover:bg-slate-700/70 text-slate-300 border-slate-600/40'
 
 export default function DealerPanel({ dealer }: { dealer: DealerEntry }) {
+  const { settings } = useSettings()
+  const [expanded, setExpanded] = useState(() => settings.autoExpandCards)
+
   const { snapshot } = useSnapshot(dealer.dealer_id)
   const { pauseDealer, resumeDealer, stopDealer, dealNextFor, restartDealer } = useEngineActions()
   const uptime    = useUptime(snapshot?.engine_start_epoch ?? null)
@@ -40,12 +45,14 @@ export default function DealerPanel({ dealer }: { dealer: DealerEntry }) {
   const badgeCls  = STATUS_BADGE[dealer.status] ?? STATUS_BADGE.idle
 
   return (
-    <div className="space-y-5 p-6 max-w-5xl mx-auto">
+    <div className="glass-card rounded-2xl overflow-hidden">
 
-      {/* ── Header card ── */}
-      <div className="glass-card rounded-2xl px-6 py-4">
-
-        {/* Top row: identity + dealer controls */}
+      {/* ── Clickable header ── */}
+      <div
+        onClick={() => setExpanded(v => !v)}
+        className="cursor-pointer px-6 py-4"
+      >
+        {/* Top row: identity + dealer controls + chevron */}
         <div className="flex flex-wrap items-center justify-between gap-4">
 
           {/* Identity */}
@@ -82,11 +89,11 @@ export default function DealerPanel({ dealer }: { dealer: DealerEntry }) {
             </div>
           </div>
 
-          {/* Card Dealer controls */}
+          {/* Controls + chevron */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {dealer.is_paused ? (
               <button
-                onClick={() => resumeDealer(dealer.dealer_id)}
+                onClick={(e) => { e.stopPropagation(); resumeDealer(dealer.dealer_id) }}
                 className={`${CONTROL_BTN_BASE} ${CONTROL_BTN.resume}`}
               >
                 <Play className="w-3 h-3" />
@@ -94,7 +101,7 @@ export default function DealerPanel({ dealer }: { dealer: DealerEntry }) {
               </button>
             ) : isRunning ? (
               <button
-                onClick={() => pauseDealer(dealer.dealer_id)}
+                onClick={(e) => { e.stopPropagation(); pauseDealer(dealer.dealer_id) }}
                 className={`${CONTROL_BTN_BASE} ${CONTROL_BTN.pause}`}
               >
                 <Pause className="w-3 h-3" />
@@ -104,7 +111,7 @@ export default function DealerPanel({ dealer }: { dealer: DealerEntry }) {
 
             {(isRunning || dealer.is_paused) && (
               <button
-                onClick={() => stopDealer(dealer.dealer_id)}
+                onClick={(e) => { e.stopPropagation(); stopDealer(dealer.dealer_id) }}
                 className={`${CONTROL_BTN_BASE} ${CONTROL_BTN.stop}`}
               >
                 <Square className="w-3 h-3" />
@@ -114,7 +121,7 @@ export default function DealerPanel({ dealer }: { dealer: DealerEntry }) {
 
             {(isIdle || dealer.is_paused) && (
               <button
-                onClick={() => dealNextFor(dealer.dealer_id)}
+                onClick={(e) => { e.stopPropagation(); dealNextFor(dealer.dealer_id) }}
                 className={`${CONTROL_BTN_BASE} ${BTN_NEUTRAL}`}
               >
                 <Play className="w-3 h-3" />
@@ -123,12 +130,16 @@ export default function DealerPanel({ dealer }: { dealer: DealerEntry }) {
             )}
 
             <button
-              onClick={() => restartDealer(dealer.dealer_id)}
+              onClick={(e) => { e.stopPropagation(); restartDealer(dealer.dealer_id) }}
               className={`${CONTROL_BTN_BASE} ${BTN_NEUTRAL}`}
             >
               <RefreshCw className="w-3 h-3" />
               <span>Restart</span>
             </button>
+
+            <span className="ml-1 text-slate-500">
+              {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </span>
           </div>
         </div>
 
@@ -139,54 +150,61 @@ export default function DealerPanel({ dealer }: { dealer: DealerEntry }) {
             {dealer.error}
           </div>
         )}
-      </div>
 
-      {/* ── Progress bar ── */}
-      <CardProgressBar progressPct={dealer.progress_pct ?? 0} />
-
-      {/* ── Stats row ── */}
-      <div className="grid grid-cols-3 gap-3">
-        <MiniStat
-          value={dealer.cycles_completed}
-          label="Cycles"
-          icon={<RefreshCw className="w-4 h-4 text-accent-light" />}
-        />
-        <MiniStat
-          value={dealer.completed_total}
-          label="Done"
-          icon={<CheckSquare className="w-4 h-4 text-success" />}
-        />
-        <MiniStat
-          value={uptime}
-          label="Uptime"
-          icon={<Clock className="w-4 h-4 text-info" />}
-        />
-      </div>
-
-      {/* ── Current Task ── */}
-      <TaskPreview markdown={snapshot?.current_instruction ?? ''} />
-
-      {/* ── Workspace files — expandable ── */}
-      <ExpandableCard
-        title="Workspace Activity"
-        icon={<ScanLine className="w-4 h-4 text-accent-light" />}
-        defaultExpanded={false}
-        expandedContent={<WorkspaceScan files={files} />}
-      >
-        <div className="px-5 py-2 text-xs text-slate-500 font-mono truncate">
-          {dealer.workspace || 'workspace path unavailable'}
+        {/* Progress bar */}
+        <div className="mt-3">
+          <CardProgressBar progressPct={dealer.progress_pct ?? 0} />
         </div>
-      </ExpandableCard>
 
-      {/* ── Full live log ── */}
-      <LogTerminal lines={snapshot?.log_lines ?? []} />
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-3 mt-3">
+          <MiniStat
+            value={dealer.cycles_completed}
+            label="Cycles"
+            icon={<RefreshCw className="w-4 h-4 text-accent-light" />}
+          />
+          <MiniStat
+            value={dealer.completed_total}
+            label="Done"
+            icon={<CheckSquare className="w-4 h-4 text-success" />}
+          />
+          <MiniStat
+            value={uptime}
+            label="Uptime"
+            icon={<Clock className="w-4 h-4 text-info" />}
+          />
+        </div>
+      </div>
 
-      {/* ── Completed tasks ── */}
-      <HistoryFeed history={snapshot?.history ?? []} />
+      {/* ── Expanded detail section ── */}
+      {expanded && (
+        <div className="border-t border-slate-700/30 space-y-4 p-4">
 
-      {/* ── AI Agent (tmux) session ── */}
-      <AgentPanel />
+          {/* Current Task */}
+          <TaskPreview markdown={snapshot?.current_instruction ?? ''} />
 
+          {/* Compact live log */}
+          <LogTerminal lines={snapshot?.log_lines ?? []} compact={settings.compactLogs} />
+
+          {/* Workspace files — expandable */}
+          <ExpandableCard
+            title="Workspace Activity"
+            icon={<ScanLine className="w-4 h-4 text-accent-light" />}
+            defaultExpanded={false}
+            expandedContent={<WorkspaceScan files={files} />}
+          >
+            <div className="px-5 py-2 text-xs text-slate-500 font-mono truncate">
+              {dealer.workspace || 'workspace path unavailable'}
+            </div>
+          </ExpandableCard>
+
+          {/* Completed tasks */}
+          <HistoryFeed history={snapshot?.history ?? []} />
+
+          {/* Agent tmux CLI — lazy: only mounts when expanded */}
+          <AgentPanel />
+        </div>
+      )}
     </div>
   )
 }

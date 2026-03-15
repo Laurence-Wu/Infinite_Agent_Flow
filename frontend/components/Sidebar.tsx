@@ -1,25 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import {
   Terminal, Activity, FileCode2, Settings, LayoutDashboard,
   History, FileText, Menu, X,
 } from 'lucide-react'
-import { useDealers }    from '@/lib/hooks/useDealers'
 import { useWorkflows }  from '@/lib/hooks/useWorkflows'
-import type { DealerEntry } from '@/lib/types'
 
 export default function Sidebar() {
-  const pathname     = usePathname()
-  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const [isOpen, setIsOpen]     = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  const { dealers }   = useDealers()
   const { workflows } = useWorkflows()
-  const activeDealerId = searchParams.get('dealer')
 
   // Detect mobile on mount and resize
   useEffect(() => {
@@ -111,24 +106,9 @@ export default function Sidebar() {
               icon={item.icon}
               label={item.label}
               href={item.href}
-              active={pathname === item.href && !activeDealerId}
+              active={pathname === item.href}
             />
           ))}
-
-          {/* ── Dealers ── */}
-          <SectionLabel label="Dealers" />
-
-          {dealers.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-slate-600 italic hidden lg:block">No dealers</p>
-          ) : (
-            dealers.map(dealer => (
-              <DealerSidebarItem
-                key={dealer.dealer_id}
-                dealer={dealer}
-                active={activeDealerId === dealer.dealer_id}
-              />
-            ))
-          )}
 
           {/* ── Workflows ── */}
           <SectionLabel label="Workflows" />
@@ -207,45 +187,6 @@ function SidebarItem({
                       opacity-0 pointer-events-none group-hover:opacity-100 lg:hidden z-50
                       whitespace-nowrap border border-slate-700 shadow-lg transition-opacity duration-200">
         {label}
-      </div>
-    </Link>
-  )
-}
-
-// ── Dealer sidebar item ────────────────────────────────────────────────────────
-function DealerSidebarItem({ dealer, active }: { dealer: DealerEntry; active: boolean }) {
-  const dotCls =
-    dealer.status === 'running' ? 'bg-success animate-pulse' :
-    dealer.status === 'error'   ? 'bg-danger'               : 'bg-slate-600'
-
-  return (
-    <Link
-      href={`/?dealer=${dealer.dealer_id}`}
-      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all touch-target group relative
-        ${active
-          ? 'bg-surface-light text-accent shadow-[inset_3px_0_0_rgba(215,153,33,1)]'
-          : 'text-slate-400 hover:text-gruvbox-fg hover:bg-surface-soft'}`}
-    >
-      {/* Status dot */}
-      <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
-
-      {/* Dealer ID */}
-      <span className="font-mono text-xs truncate flex-1 hidden lg:block">
-        {dealer.dealer_id}
-      </span>
-
-      {/* Progress % when running */}
-      {dealer.status === 'running' && (
-        <span className="text-[10px] font-mono text-accent-light hidden lg:block shrink-0">
-          {dealer.progress_pct}%
-        </span>
-      )}
-
-      {/* Tooltip on icon-only mode */}
-      <div className="absolute left-full ml-2 px-2 py-1 bg-surface-lighter text-xs rounded
-                      opacity-0 pointer-events-none group-hover:opacity-100 lg:hidden z-50
-                      whitespace-nowrap border border-slate-700 shadow-lg transition-opacity duration-200">
-        {dealer.dealer_id}
       </div>
     </Link>
   )

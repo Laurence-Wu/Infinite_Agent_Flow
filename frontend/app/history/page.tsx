@@ -1,12 +1,11 @@
 'use client'
 
-import { useHistory } from '@/lib/hooks/useHistory'
+import { useAllHistory } from '@/lib/hooks/useAllHistory'
 import { CheckCircle, Clock } from 'lucide-react'
 import ExpandableMarkdown from '@/components/ExpandableMarkdown'
 
 export default function HistoryPage() {
-  const { history, isLoading } = useHistory()
-  const reversed = [...history].reverse()
+  const { history, isLoading } = useAllHistory()
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
@@ -14,23 +13,23 @@ export default function HistoryPage() {
         <CheckCircle className="w-6 h-6 text-success" />
         <h1 className="text-xl font-bold text-gruvbox-fg">Task History</h1>
         <span className="text-sm text-slate-500 font-mono">
-          {history.length} {history.length === 1 ? 'task' : 'tasks'} completed
+          {history.length} {history.length === 1 ? 'task' : 'tasks'} completed across all agents
         </span>
       </div>
 
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">Loading history...</div>
-      ) : reversed.length === 0 ? (
+      ) : history.length === 0 ? (
         <div className="glass-card rounded-2xl p-8 text-center">
           <Clock className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400">No completed tasks yet</p>
           <p className="text-sm text-slate-500 mt-2">
-            Completed tasks will appear here as the workflow progresses
+            Completed tasks will appear here as workflows progress
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {reversed.map((item, i) => (
+          {history.map((item, i) => (
             <div
               key={i}
               className="glass-card rounded-2xl overflow-hidden"
@@ -47,6 +46,10 @@ export default function HistoryPage() {
                       {item.loop_id}
                     </span>
                   )}
+                  <span className="text-xs px-2 py-0.5 rounded-full
+                                   bg-slate-800/60 text-slate-400 border border-slate-700/40 font-mono">
+                    {item.dealer_id}
+                  </span>
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-mono text-slate-400">

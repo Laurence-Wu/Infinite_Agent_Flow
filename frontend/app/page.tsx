@@ -1,27 +1,11 @@
 'use client'
 
-import { useEffect, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
-import { useDealers }  from '@/lib/hooks/useDealers'
-import DealerPanel from '@/components/DealerPanel'
+import { Suspense } from 'react'
+import { useDealers } from '@/lib/hooks/useDealers'
+import DealerPanel   from '@/components/DealerPanel'
 
 function DashboardContent() {
-  const { dealers }      = useDealers()
-  const searchParams     = useSearchParams()
-  const router           = useRouter()
-  const dealerIdFromUrl  = searchParams.get('dealer')
-
-  // Auto-redirect to first running dealer (or first in list) when no valid selection
-  useEffect(() => {
-    if (dealers.length === 0) return
-    const ids = dealers.map(d => d.dealer_id)
-    if (!dealerIdFromUrl || !ids.includes(dealerIdFromUrl)) {
-      const target = dealers.find(d => d.status === 'running') ?? dealers[0]
-      router.replace(`/?dealer=${target.dealer_id}`)
-    }
-  }, [dealers, dealerIdFromUrl, router])
-
-  const activeDealer = dealers.find(d => d.dealer_id === dealerIdFromUrl) ?? null
+  const { dealers } = useDealers()
 
   if (dealers.length === 0) {
     return (
@@ -37,15 +21,15 @@ function DashboardContent() {
     )
   }
 
-  if (!activeDealer) {
-    return (
-      <div className="flex items-center justify-center h-full text-slate-600 text-sm italic">
-        Selecting dealer…
+  return (
+    <div className="p-4 space-y-4">
+      <div className={`grid gap-4 ${dealers.length > 1 ? 'xl:grid-cols-2' : ''}`}>
+        {dealers.map(dealer => (
+          <DealerPanel key={dealer.dealer_id} dealer={dealer} />
+        ))}
       </div>
-    )
-  }
-
-  return <DealerPanel dealer={activeDealer} />
+    </div>
+  )
 }
 
 export default function Dashboard() {

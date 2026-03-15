@@ -89,6 +89,25 @@ class InstructionWrapper:
         )
         return self
 
+    def add_git_safety(self) -> "InstructionWrapper":
+        """Inject a git interactive-editor safety warning.
+        Reminds the agent that git operations (commit, rebase, merge) can open
+        interactive editors that block the session. Use non-interactive flags or
+        press Ctrl+X to exit nano/pico without saving."""
+        self._suffixes.append(
+            "\n\n> **GIT SAFETY — NON-INTERACTIVE MODE**: Some git commands open an "
+            "interactive editor (e.g. `git commit` without `-m`, `git rebase -i`, "
+            "`git merge` with conflicts). This will **block the agent session** and "
+            "require manual intervention.\n\n"
+            "> **Always use non-interactive flags**:\n"
+            "> - `git commit -m \"message\"` — never bare `git commit`\n"
+            "> - `git merge --no-edit` — accept the default merge message\n"
+            "> - `git rebase --abort` if an interactive rebase accidentally starts\n"
+            "> - If an editor opens unexpectedly, press **Ctrl+X** to exit nano/pico "
+            "without saving, then retry with a non-interactive flag.\n"
+        )
+        return self
+
     def add_branch_policy(self) -> "InstructionWrapper":
         """Inject a git branch policy for high-risk changes.
         Tells the agent to create a feature branch before making risky modifications."""

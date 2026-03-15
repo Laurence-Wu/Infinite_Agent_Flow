@@ -127,6 +127,7 @@ class CardsDealer:
         wrapper.add_venv_directive(str(self._config.resolved_workspace))
         wrapper.add_envelope()
         wrapper.add_workspace_boundary(str(self._config.resolved_workspace))
+        wrapper.add_git_safety()
 
         # DRY reminder every 2nd card (0-indexed: cards 1, 3, 5, ...)
         if (card_index + 1) % 2 == 0:

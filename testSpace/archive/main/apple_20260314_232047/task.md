@@ -1,13 +1,13 @@
-# Task: banana
+# Task: apple
 
 | Field | Value |
 |---|---|
 | **Workflow** | jobscrap_v2 |
 | **Version** | v1 |
-| **Card** | banana |
+| **Card** | apple |
 | **Priority** | normal |
-| **Timestamp** | 2026-03-14T23:33:20.816965 |
-| **Tags** | feature, discover |
+| **Timestamp** | 2026-03-14T23:20:47.112415 |
+| **Tags** | ops, commit |
 
 ---
 
@@ -83,77 +83,63 @@ pip freeze > requirements.txt   # to record dependencies
 
 ## Current Task
 
-## f1 · Discover and Plan the Next Feature Sprint
+## s8 · Commit Ops Changes
 
 Workspace: `C:\Users\MSI\Desktop\WinCoding\jobScrap\job-war-room`
 
 ### Goal
-Select the single highest-impact unshipped improvement, research its feasibility,
-and write a complete `SPRINT_DECISION.md` so f2 can start immediately.
+Run the full test suite, stage only safe ops files (never credentials),
+commit with the ops convention, push, and trim the seen_jobs cache if bloated.
 
-### Step 1 — Gather Context
-1. Read `EVOLUTION_BACKLOG.md` (create if missing — populate in step 3)
-2. Read `EVOLUTION_LOG.md` — know what has already shipped
-3. Read the last 3 `### Analysis` sections from `ops_log.md`
+### Step 1 — Final Test Gate
+```
+cd C:\Users\MSI\Desktop\WinCoding\jobScrap\job-war-room
+.venv\Scripts\activate
+.venv\Scripts\python.exe -m pytest tests/ -v
+```
+100% pass required. If any test fails: fix it first, then come back here.
 
-### Step 2 — Select Highest-Priority Item
-Priority ranking:
-  **P0** — breaks production or causes zero yield (fix immediately)
-  **P1** — reduces manual work, improves reliability, or fixes alert failures
-  **P2** — expands scraper coverage or adds a new data source
-  **P3** — nice-to-have quality improvements
+### Step 2 — Stage Only Safe Files
+**NEVER** stage: `config.json`, `.env`, `.env.local`, `*.key`, `*.pem`
+Safe to stage:
+```
+git add ops_log.md EVOLUTION_LOG.md EVOLUTION_BACKLOG.md
+git add keywords/ src/ tests/ requirements.txt
+git add manually_added_jobs.json  # if it changed
+```
+Only add files that were actually modified this cycle. Check with `git diff --name-only`.
 
-Common high-value P1/P2 items to consider if backlog is empty:
-  - Integrate async scraping (fetch multiple sources concurrently)
-  - Build Handshake scraper (Selenium-based) to automate s4
-  - Add WayUp API integration
-  - Auto-refresh companies.csv from a curated remote source
-  - Add Discord notification (webhook) for S-tier alerts
-  - Add job deduplication by title+company (catch same role on multiple boards)
-  - Build a CLI dashboard (rich) showing live pipeline stats
-  - Scheduled auto-run via Windows Task Scheduler integration guide
+### Step 3 — Commit
+Use host-shell date style:
+- Linux/macOS: `git commit -m "ops: daily run and tuning $(date +%Y-%m-%d)"`
+- PowerShell: `git commit -m "ops: daily run and tuning $(Get-Date -Format yyyy-MM-dd)"`
 
-### Step 3 — Feasibility Check
-Before writing SPRINT_DECISION.md:
-  - Read the relevant source files
-  - Confirm the change fits in ~200 lines of new code
-  - List exactly which files change
-
-### Step 4 — Write SPRINT_DECISION.md
-```markdown
-# Sprint Decision
-
-## Selected: <feature title>
-## Priority: <P0/P1/P2/P3>
-## Branch: feat/<kebab-case-name>
-
-## Problem
-<What is broken or missing — cite specific ops_log data>
-
-## Proposed Solution
-<3-5 sentence implementation plan — be concrete>
-
-## Files to Change
-- <file1.py>: <what changes>
-- <file2.py>: <what changes>
-
-## Acceptance Criteria
-- [ ] <verifiable criterion 1>
-- [ ] <verifiable criterion 2>
-- [ ] <verifiable criterion 3>
-- [ ] All existing tests still pass
-- [ ] New tests cover the changed code
-
-## Out of Scope
-<What you will NOT do in this sprint>
+### Step 4 — Push
+```
+git push origin main
 ```
 
-### Step 5 — Seed Backlog if Missing
-If `EVOLUTION_BACKLOG.md` was missing or empty: create it with the top 5
-improvements identified from ops_log pain points and the suggestions in step 2.
+### Step 5 — Trim seen_jobs Cache
+If `seen_jobs_orchestrator.json` has more than 500 entries:
+```python
+import json
+import pathlib
 
+f = pathlib.Path(r"C:\Users\MSI\Desktop\WinCoding\jobScrap\job-war-room/seen_jobs_orchestrator.json")
+items = json.loads(f.read_text(encoding="utf-8"))
+if len(items) > 500:
+    items = items[-200:]  # keep last 200
+    f.write_text(json.dumps(items, indent=2), encoding="utf-8")
+    print(f"Trimmed to {len(items)} entries")
+```
+Then stage and commit the cache trim only if the file changed.
 
-> **HOUSEKEEPING REMINDER**: Before finishing this task, take a moment to DRY up any duplicated code you encounter and tidy the folder structure. Remove dead code, consolidate shared logic, and ensure clean imports.
+### Step 6 — Confirm
+```
+git log --oneline -5
+git status
+```
+
 
 ---
 **COMPLETION CHECKLIST** — before you finish:

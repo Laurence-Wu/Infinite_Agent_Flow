@@ -3,27 +3,22 @@
 import { useMemo, useState } from 'react'
 import { GitBranch, Users } from 'lucide-react'
 import ExpandableCard from '@/components/ExpandableCard'
-import type { Workflow, AgentEntry } from '@/lib/types'
+import type { Workflow, DealerEntry } from '@/lib/types'
 import { groupWorkflows, getStatusCounts } from '@/lib/workflowUtils'
 
 interface WorkflowListProps {
   workflows: Workflow[]
-  agents?: AgentEntry[]
+  dealers?: DealerEntry[]
 }
 
-export default function WorkflowList({ workflows, agents = [] }: WorkflowListProps) {
-  const groups = useMemo(() => groupWorkflows(workflows, agents), [workflows, agents])
+export default function WorkflowList({ workflows, dealers = [] }: WorkflowListProps) {
+  const groups = useMemo(() => groupWorkflows(workflows, dealers), [workflows, dealers])
 
   const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({})
 
-  const isExpanded = (key: string) => {
-    if (groups.length === 1) return true
-    return !!expandedKeys[key]
-  }
-
-  const toggleExpanded = (key: string, next: boolean) => {
+  const isExpanded = (key: string) => groups.length === 1 || !!expandedKeys[key]
+  const toggleExpanded = (key: string, next: boolean) =>
     setExpandedKeys(prev => ({ ...prev, [key]: next }))
-  }
 
   return (
     <div className="glass-card rounded-2xl p-5">
@@ -40,7 +35,6 @@ export default function WorkflowList({ workflows, agents = [] }: WorkflowListPro
         <div className="space-y-3">
           {groups.map(group => {
             const counts = getStatusCounts(group)
-
             return (
               <ExpandableCard
                 key={group.key}
@@ -49,18 +43,18 @@ export default function WorkflowList({ workflows, agents = [] }: WorkflowListPro
                 isExpanded={isExpanded(group.key)}
                 onToggle={next => toggleExpanded(group.key, next)}
                 expandedContent={
-                  group.agents.length === 0 ? (
-                    <p className="text-xs text-slate-500 italic">No active agents on this workflow.</p>
+                  group.dealers.length === 0 ? (
+                    <p className="text-xs text-slate-500 italic">No active dealers on this workflow.</p>
                   ) : (
                     <div className="space-y-2">
-                      {group.agents.map(agent => (
+                      {group.dealers.map(dealer => (
                         <div
-                          key={agent.agent_id}
+                          key={dealer.dealer_id}
                           className="rounded-lg border border-slate-700/50 bg-slate-900/30 px-3 py-2"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-mono text-slate-300 truncate">{agent.agent_id}</span>
-                            <span className="text-[11px] text-slate-500 truncate">{agent.current_card_id ?? 'N/A'}</span>
+                            <span className="text-xs font-mono text-slate-300 truncate">{dealer.dealer_id}</span>
+                            <span className="text-[11px] text-slate-500 truncate">{dealer.current_card_id ?? 'N/A'}</span>
                           </div>
                         </div>
                       ))}
@@ -82,7 +76,7 @@ export default function WorkflowList({ workflows, agents = [] }: WorkflowListPro
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
                     <Users className="w-3.5 h-3.5" />
-                    <span>{group.agents.length} active agent(s)</span>
+                    <span>{group.dealers.length} active dealer{group.dealers.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
               </ExpandableCard>
