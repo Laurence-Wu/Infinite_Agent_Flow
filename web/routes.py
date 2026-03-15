@@ -114,6 +114,9 @@ class DashboardRouter:
         self.registry     = registry
         self.archive      = archive
         self.tmux_manager = tmux_manager
+        # Cache of metadata for remote (peer-attached) agents keyed by agent_id.
+        # Populated by api_report_state; used to include remote agents in api_dealers.
+        self._remote_agents: dict = {}
 
     def register(self, app: Flask) -> None:
         """Bind all routes to the Flask application."""
@@ -196,7 +199,31 @@ class DashboardRouter:
     def api_dealers(self):
         """GET /api/dealers — list all registered dealers as a JSON array."""
         if self.registry:
-            return jsonify(self.registry.list_dealers())
+            dealers = self.registry.list_dealers()
+            # Merge remote (peer-attached) agents that reported via api_report_state
+            registered_ids = {d["dealer_id"] for d in dealers}
+            for aid, meta in list(self._remote_agents.items()):
+                if aid in registered_ids:
+                    continue
+                snap = self.state.get_snapshot(aid)
+                dealers.append({
+                    "dealer_id":       aid,
+                    "workspace":       meta.get("workspace", ""),
+                    "workflow":        snap.get("current_workflow", meta.get("workflow", "")),
+                    "version":         snap.get("current_version",  meta.get("version",  "")),
+                    "status":          snap.get("status", "unknown"),
+                    "current_card_id": snap.get("current_card_id"),
+                    "started_at":      snap.get("started_at"),
+                    "last_updated":    snap.get("last_updated"),
+                    "is_paused":       False,
+                    "cycles_completed": snap.get("cycles_completed", 0),
+                    "completed_total": snap.get("completed_total", 0),
+                    "progress_pct":    snap.get("progress_pct", 0),
+                    "card_index":      snap.get("card_index", 0),
+                    "total_cards":     snap.get("total_cards", 0),
+                    "error":           snap.get("error"),
+                })
+            return jsonify(dealers)
         snaps = self.state.get_all_snapshots()
         return jsonify(list(snaps.values()))
 
@@ -292,6 +319,16 @@ class DashboardRouter:
         if not data:
             return jsonify({"error": "Missing JSON body"}), 400
         self.state.update_from_snapshot(data)
+        # Cache metadata for remote agent so api_dealers can include it
+        aid = data.get("agent_id")
+        if aid:
+            self._remote_agents.setdefault(aid, {})
+            if data.get("workspace"):
+                self._remote_agents[aid]["workspace"] = data["workspace"]
+            if data.get("current_workflow"):
+                self._remote_agents[aid]["workflow"] = data["current_workflow"]
+            if data.get("current_version"):
+                self._remote_agents[aid]["version"] = data["current_version"]
         return jsonify({"status": "ok"})
 
     # ------------------------------------------------------------------ #

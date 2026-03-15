@@ -87,6 +87,7 @@ def build_dealer_stack(
         state: StateManager = RemoteStateManager(
             server_url=server_url,
             agent_id=dealer_id,
+            workspace=str(config.resolved_workspace),
         )
     else:
         persist_path = config.resolved_workspace / ".carddealer" / "state.json"

@@ -23,6 +23,8 @@ WORKSPACE_1="$(read_cfg workspace_1)"
 WORKSPACE_2="$(read_cfg workspace_2)"
 AGENT_ID_1="$(read_cfg agent_id_1)"
 AGENT_ID_2="$(read_cfg agent_id_2)"
+AGENT_CMD_1="$(read_cfg agent_command_1)"
+AGENT_CMD_2="$(read_cfg agent_command_2)"
 
 # Check whether Agent 1's Flask server is already listening on $PORT
 if ! curl -s --max-time 2 "http://localhost:${PORT}/api/agents" > /dev/null 2>&1; then
@@ -52,12 +54,13 @@ if ! curl -s --max-time 2 "http://localhost:${PORT}/api/agents" > /dev/null 2>&1
 
     # 4. Start the orchestrator
     python orchestrator.py \
-      --workspace  "${WORKSPACE_1}" \
-      --workflow   "${WORKFLOW}" \
-      --version    "${VERSION}" \
-      --port       "${PORT}" \
-      --ngrok-auth "${NGROK_AUTH}" \
-      --agent-id   "${AGENT_ID_1}"
+      --workspace     "${WORKSPACE_1}" \
+      --workflow      "${WORKFLOW}" \
+      --version       "${VERSION}" \
+      --port          "${PORT}" \
+      --ngrok-auth    "${NGROK_AUTH}" \
+      --agent-id      "${AGENT_ID_1}" \
+      ${AGENT_CMD_1:+--agent-command "${AGENT_CMD_1}"}
 
     echo "Agent 1 exited — restarting in 10s..."
     sleep 10
@@ -66,11 +69,12 @@ else
   echo "Agent 1 already running on port ${PORT} — starting Agent 2 (attached)..."
   while true; do
     python orchestrator.py \
-      --workspace "${WORKSPACE_2}" \
-      --workflow  "${WORKFLOW}" \
-      --version   "${VERSION}" \
-      --attach    "http://localhost:${PORT}" \
-      --agent-id  "${AGENT_ID_2}"
+      --workspace     "${WORKSPACE_2}" \
+      --workflow      "${WORKFLOW}" \
+      --version       "${VERSION}" \
+      --attach        "http://localhost:${PORT}" \
+      --agent-id      "${AGENT_ID_2}" \
+      ${AGENT_CMD_2:+--agent-command "${AGENT_CMD_2}"}
     echo "Agent 2 exited — restarting in 10s..."
     sleep 10
   done

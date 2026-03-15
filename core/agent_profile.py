@@ -58,6 +58,10 @@ class AgentProfile:
     ui_box_tokens:     tuple[str, ...]
     box_wait_timeout:  float = 30.0
     box_poll_interval: float = 1.0
+    # tmux key sequence to enable yolo/auto-accept mode.
+    # Each entry is sent as a separate send-keys call.
+    # Gemini uses a single Ctrl+Y toggle; Qwen uses Shift+Tab twice (BTab BTab).
+    yolo_keys:         tuple[str, ...] = ("C-y",)
 
     # ------------------------------------------------------------------ #
     #  Detection helpers
@@ -144,6 +148,7 @@ class AgentProfile:
             ui_box_tokens=tuple(data.get("ui_box_tokens", [])),
             box_wait_timeout=float(data.get("box_wait_timeout", 30.0)),
             box_poll_interval=float(data.get("box_poll_interval", 1.0)),
+            yolo_keys=tuple(data.get("yolo_keys", ["C-y"])),
         )
 
     @classmethod

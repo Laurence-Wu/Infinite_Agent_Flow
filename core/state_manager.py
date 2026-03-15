@@ -298,8 +298,9 @@ class RemoteStateManager(StateManager):
     Uses explicit method overrides — NO ``__getattribute__`` magic.
     """
 
-    def __init__(self, server_url: str, agent_id: str = "default"):
+    def __init__(self, server_url: str, agent_id: str = "default", workspace: str = ""):
         super().__init__(agent_id=agent_id)
+        self._workspace = workspace
 
         # Extract Basic-Auth credentials embedded in the URL
         # e.g. https://user:pass@abc123.ngrok-free.app
@@ -356,6 +357,7 @@ class RemoteStateManager(StateManager):
         try:
             snap = self.get_snapshot(self._primary_agent_id)
             snap["agent_id"] = self._primary_agent_id
+            snap["workspace"] = self._workspace
             data = json.dumps(snap, default=str).encode("utf-8")
             headers: Dict[str, str] = {"Content-Type": "application/json"}
             if self._auth_header:

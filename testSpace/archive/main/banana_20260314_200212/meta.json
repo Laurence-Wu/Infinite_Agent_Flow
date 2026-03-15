@@ -1,0 +1,10 @@
+{
+  "card_id": "banana",
+  "alias": "banana",
+  "loop_id": "main",
+  "workflow": "jobscrap_v2",
+  "version": "v1",
+  "agent_id": "agent_2",
+  "started_at": "2026-03-14T20:01:12.734555",
+  "completed_at": "2026-03-14T20:02:12.798885"
+}

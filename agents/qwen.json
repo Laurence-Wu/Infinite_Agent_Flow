@@ -1,6 +1,7 @@
 {
   "name": "qwen",
-  "ui_box_tokens": ["Type your message", "[Pasted Text:"],
+  "ui_box_tokens": ["Type your message", "[Pasted Text:", "[Pasted Content"],
+  "yolo_keys": ["BTab", "BTab"],
   "box_wait_timeout": 30.0,
   "box_poll_interval": 1.0
 }

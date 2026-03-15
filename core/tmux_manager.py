@@ -375,11 +375,14 @@ class TmuxManager(TmuxBase):
                 )
                 return
 
-            # ── 4. Ctrl+Y — yolo mode (auto-accept tool calls) ───────────
-            self._run("send-keys", "-t", self._session, "C-y", "")
+            # ── 4. Yolo mode — key sequence from agent profile ────────────
+            # Gemini: ["C-y"]  |  Qwen: ["BTab", "BTab"] (Shift+Tab twice)
+            for key in self._profile.yolo_keys:
+                self._run("send-keys", "-t", self._session, key, "")
+                time.sleep(0.1)
             logger.info(
-                "tmux session '%s': UI box visible → sent Ctrl+Y (yolo mode)",
-                self._session,
+                "tmux session '%s': UI box visible → sent yolo keys %s",
+                self._session, list(self._profile.yolo_keys),
             )
             time.sleep(0.5)
 
