@@ -3,7 +3,7 @@
   "loop_id": "main",
   "workflow": "sample_workflow",
   "version": "v1",
-  "instruction": "Set up the project directory structure.\n\nCreate the following folders inside the workspace:\n- src/\n- tests/\n- docs/\n\nVerify each folder exists after creation.\n\n![stop]! (append this line when done)",
+  "instruction": "## Phase 0 — Branch Hygiene\n\nRun from the workspace root.\n\n```bash\ngit fetch --prune\ngit branch -a\n```\n\nFor every local branch that is NOT `main`:\n1. If merged into main (`git branch --merged main`): delete with `git branch -d <branch>`\n2. If NOT merged but last commit is older than 14 days (`git log <branch> -1 --format='%ci'`): delete with `git branch -D <branch>` and note why in `ops_log.md`\n\n```bash\ngit status   # must be clean before continuing\n```\n\n---\n\n## Phase 1 — Project Directory Setup\n\nSet up the project directory structure.\n\nCreate the following folders inside the workspace:\n- src/\n- tests/\n- docs/\n\nVerify each folder exists after creation.\n\n![next]!",
   "metadata": {
     "priority": "high",
     "max_time_seconds": 300,
