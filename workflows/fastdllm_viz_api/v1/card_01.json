@@ -1,0 +1,13 @@
+{
+  "id": "card_01",
+  "loop_id": "main",
+  "workflow": "fastdllm_viz_api",
+  "version": "v1",
+  "instruction": "## Phase 0 — Branch Setup & Sync\n\nWorkspace: `C:\\Users\\MSI\\Desktop\\WinCoding\\Fast-dllm`\n\n### Steps\n\n1. `cd C:\\Users\\MSI\\Desktop\\WinCoding\\Fast-dllm`\n2. `git fetch origin`\n3. Check if branch `user/xwu/inferenceAPI_dev` exists locally:\n   - If yes: `git checkout user/xwu/inferenceAPI_dev && git pull origin main`\n   - If no: `git checkout -b user/xwu/inferenceAPI_dev origin/main`\n4. Verify you are on `user/xwu/inferenceAPI_dev`: run `git branch --show-current`\n5. Verify base commit is from main, NOT from `users/jibf/decoding_stats`\n6. Create `llada/api/__init__.py` with this content:\n\n```python\n\"\"\"\nFast-dLLM Inference Visualization API\n\nPublic surface:\n    from llada.api import InferenceTrace, V1Adapter, V2Adapter, MockAdapter\n\"\"\"\nfrom llada.api.trace          import InferenceTrace   # noqa: F401\nfrom llada.api.adapters.mock  import MockAdapter      # noqa: F401\n```\n\n7. Create `llada/api/adapters/__init__.py` (empty, just a docstring `\"\"\"Pipeline adapters.\"\"\"`)\n8. Commit: `git commit -m 'feat: scaffold llada/api package (Phase 0)'`\n9. Push: `git push origin user/xwu/inferenceAPI_dev:user/xwu/InferenceAPI_Infra`\n\n### Gate check\n- `git log --oneline -1` must show your new commit\n- `git branch --show-current` must show `user/xwu/inferenceAPI_dev`\n- `git log origin/main..HEAD --oneline` must show exactly 1 commit\n\n![stop]!",
+  "metadata": {
+    "priority": "high",
+    "max_time_seconds": 300,
+    "tags": ["setup", "git", "branch"]
+  },
+  "next_card": "card_02"
+}

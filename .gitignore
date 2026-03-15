@@ -49,6 +49,13 @@ workflows/cardDealer_evolve/*
 workflows/cardDealer_evolve/v1/*
 !workflows/cardDealer_evolve/v1/*.json
 
+!workflows/fastdllm_viz_api
+workflows/fastdllm_viz_api/*
+!workflows/fastdllm_viz_api/v1
+workflows/fastdllm_viz_api/v1/*
+!workflows/fastdllm_viz_api/v1/*.json
+!workflows/fastdllm_viz_api/v1/guidance.md
+
 # IDE
 .vscode/
 .idea/
