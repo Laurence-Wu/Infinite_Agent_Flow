@@ -74,6 +74,10 @@ class DealerRegistry:
             max_workers=self._MAX_DEALERS,
             thread_name_prefix="dealer",
         )
+        # Per-dealer tmux: either a live TmuxManager object (primary agent)
+        # or a cached status dict pushed by remote attached agents.
+        self._tmux_managers: Dict[str, Any] = {}          # dealer_id → TmuxManager
+        self._tmux_cache: Dict[str, Dict] = {}            # dealer_id → status snapshot
         self._start_health_monitor()
 
     # ------------------------------------------------------------------ #
@@ -219,6 +223,33 @@ class DealerRegistry:
         except Exception as exc:
             logger.error("deal_next failed for dealer %s: %s", dealer_id, exc)
             return {"ok": False, "error": str(exc)}
+
+    # ------------------------------------------------------------------ #
+    #  Per-dealer tmux access
+    # ------------------------------------------------------------------ #
+
+    def register_tmux(self, dealer_id: str, tmux_manager: Any) -> None:
+        """Register a live TmuxManager for the primary agent."""
+        with self._lock:
+            self._tmux_managers[dealer_id] = tmux_manager
+
+    def update_pane_cache(self, dealer_id: str, status: Dict) -> None:
+        """Store a tmux status snapshot pushed by an attached (remote) agent."""
+        with self._lock:
+            self._tmux_cache[dealer_id] = status
+
+    def get_tmux_status(self, dealer_id: str) -> Optional[Dict]:
+        """Return tmux status for a dealer — live if TmuxManager present, else cached."""
+        with self._lock:
+            mgr = self._tmux_managers.get(dealer_id)
+            if mgr is not None:
+                return mgr.status()
+            return self._tmux_cache.get(dealer_id)
+
+    def get_tmux_manager(self, dealer_id: str) -> Optional[Any]:
+        """Return the live TmuxManager for dealer_id, or None."""
+        with self._lock:
+            return self._tmux_managers.get(dealer_id)
 
     def list_dealers(self) -> List[Dict[str, Any]]:
         """Return a serialisable snapshot of all registered dealers."""

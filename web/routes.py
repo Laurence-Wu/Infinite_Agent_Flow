@@ -133,6 +133,9 @@ class DashboardRouter:
         app.add_url_rule("/api/dealer/<dealer_id>/deal",       "api_dealer_deal",            self.api_dealer_deal,            methods=["POST"])
         app.add_url_rule("/api/dealer/<dealer_id>/restart",    "api_dealer_restart",         self.api_dealer_restart,         methods=["POST"])
         app.add_url_rule("/api/dealer/<dealer_id>/workspace-scan", "api_dealer_workspace_scan", self.api_dealer_workspace_scan)
+        app.add_url_rule("/api/dealer/<dealer_id>/session",        "api_dealer_session",        self.api_dealer_session)
+        app.add_url_rule("/api/dealer/<dealer_id>/stream",         "api_dealer_stream",         self.api_dealer_stream)
+        app.add_url_rule("/api/dealer/<dealer_id>/pane-update",    "api_dealer_pane_update",    self.api_dealer_pane_update, methods=["POST"])
 
         # ── Peer state reporting ──────────────────────────────────────────
         app.add_url_rule("/api/report-state", "api_report_state", self.api_report_state, methods=["POST"])
@@ -530,6 +533,61 @@ class DashboardRouter:
                 "X-Accel-Buffering": "no",
             },
         )
+
+    # ------------------------------------------------------------------ #
+    #  Per-dealer tmux session endpoints
+    # ------------------------------------------------------------------ #
+
+    def api_dealer_session(self, dealer_id: str):
+        """GET /api/dealer/<id>/session — tmux status for a specific dealer."""
+        if self.registry is None:
+            return jsonify({"error": "no registry"}), 503
+        status = self.registry.get_tmux_status(dealer_id)
+        if status is None:
+            return jsonify({
+                "alive": False, "starting": False,
+                "session_name": "", "agent_command": "",
+                "workspace": "", "pane_lines": [],
+            })
+        return jsonify(status)
+
+    def api_dealer_stream(self, dealer_id: str):
+        """GET /api/dealer/<id>/stream — SSE stream for a specific dealer's tmux pane."""
+        if self.registry is None:
+            return jsonify({"error": "no registry"}), 503
+        mgr = self.registry.get_tmux_manager(dealer_id)
+        if mgr is None:
+            # No live TmuxManager — fall back to a keep-alive stream
+            def _noop():
+                try:
+                    while True:
+                        yield ": keep-alive\n\n"
+                        import time; time.sleep(15)
+                except GeneratorExit:
+                    pass
+            return Response(_noop(), mimetype="text/event-stream",
+                            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+        def generate():
+            try:
+                for line in mgr.stream_lines(timeout=30.0):
+                    if line.startswith(":"):
+                        yield f"{line}\n\n"
+                    else:
+                        yield f"data: {line}\n\n"
+            except GeneratorExit:
+                pass
+
+        return Response(generate(), mimetype="text/event-stream",
+                        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    def api_dealer_pane_update(self, dealer_id: str):
+        """POST /api/dealer/<id>/pane-update — attached agent pushes its tmux snapshot."""
+        if self.registry is None:
+            return jsonify({"ok": False}), 503
+        data = request.get_json(silent=True) or {}
+        self.registry.update_pane_cache(dealer_id, data)
+        return jsonify({"ok": True})
 
     # ------------------------------------------------------------------ #
     #  HTMX partial handlers

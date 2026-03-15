@@ -14,9 +14,14 @@ const DEFAULT_STATUS: AgentStatus = {
   pane_lines: [],
 }
 
-/** Polls /api/agent every 5 seconds and returns AI agent (tmux) status. */
-export function useAgentSession() {
-  const { data, error, mutate } = useSWR<AgentStatus>('/api/agent', fetcher, {
+/**
+ * Polls per-dealer tmux session status every 5 seconds.
+ * Uses /api/dealer/<dealerId>/session when dealerId is provided,
+ * falls back to /api/agent for the primary agent.
+ */
+export function useAgentSession(dealerId?: string) {
+  const url = dealerId ? `/api/dealer/${encodeURIComponent(dealerId)}/session` : '/api/agent'
+  const { data, error, mutate } = useSWR<AgentStatus>(url, fetcher, {
     refreshInterval: 5000,
   })
 

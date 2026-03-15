@@ -43,8 +43,8 @@ export function useEngineActions() {
 
   const restartDealer = useCallback(async (dealerId = 'default') => {
     const response = await fetch(`/api/dealer/${dealerId}/restart`, { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to restart dealer')
-    return response.json()
+    if (!response.ok && response.status !== 503) throw new Error('Failed to restart dealer')
+    return response.json().catch(() => ({ ok: false }))
   }, [])
 
   /** Launch a new dealer on a given workspace + workflow. */

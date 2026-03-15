@@ -7,10 +7,14 @@ import { useAgentStream }   from '@/lib/hooks/useAgentStream'
 import { useEngineActions } from '@/lib/hooks/useEngineActions'
 import { CONTROL_BTN, CONTROL_BTN_BASE } from '@/lib/statusConfig'
 
+interface AgentPanelProps {
+  dealerId?: string
+}
+
 /** Shows the AI agent tmux session status, pane output, and Start/Stop/Pause/Restart controls. */
-export default function AgentPanel() {
-  const { agentSession, isLoading } = useAgentSession()
-  const { lines: streamLines, connected: streamConnected } = useAgentStream()
+export default function AgentPanel({ dealerId }: AgentPanelProps) {
+  const { agentSession, isLoading } = useAgentSession(dealerId)
+  const { lines: streamLines, connected: streamConnected } = useAgentStream(dealerId)
   const { startAgent, stopAgent, pauseAgent, restartAgent } = useEngineActions()
   const paneRef = useRef<HTMLDivElement>(null)
 

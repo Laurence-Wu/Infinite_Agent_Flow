@@ -10,6 +10,8 @@ import { STATUS_DOT, CONTROL_BTN, CONTROL_BTN_BASE } from '@/lib/statusConfig'
 import { useSnapshot } from '@/lib/hooks/useSnapshot'
 import { useEngineActions } from '@/lib/hooks/useEngineActions'
 import { useUptime } from '@/lib/hooks/useUptime'
+import { useAgentSession } from '@/lib/hooks/useAgentSession'
+import { useAgentStream } from '@/lib/hooks/useAgentStream'
 import CardProgressBar from '@/components/card/CardProgressBar'
 import LogTerminal from '@/components/LogTerminal'
 
@@ -55,8 +57,10 @@ export default function AgentCard({ agent, isSelected, onSelect }: AgentCardProp
     if (isSelected) setExpanded(true)
   }, [isSelected])
 
-  // Lazy fetch — only when expanded
+  // Per-dealer hooks — use agent_id as the dealer_id
   const { snapshot } = useSnapshot(expanded ? agent.agent_id : undefined)
+  const { agentSession } = useAgentSession(agent.agent_id)
+  const { lines: streamLines, connected: streamConnected } = useAgentStream(agent.agent_id)
   const { pauseWorkflow, resumeWorkflow, stopWorkflow } = useEngineActions()
   const uptime = useUptime(snapshot?.engine_start_epoch ?? null)
 
@@ -210,12 +214,16 @@ export default function AgentCard({ agent, isSelected, onSelect }: AgentCardProp
               icon={<Clock className="w-4 h-4 text-info" />} />
           </div>
 
-          {/* Live log (last 10 lines) */}
+          {/* Live log (last 10 lines) — prefer live SSE stream, fall back to snapshot */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
               Live Log
             </h4>
-            <LogTerminal lines={snapshot.log_lines.slice(-10)} />
+            <LogTerminal lines={
+              connected && streamLines.length > 0
+                ? streamLines.slice(-10)
+                : snapshot.log_lines.slice(-10)
+            } />
           </div>
 
           {/* Current instruction (abbreviated) */}

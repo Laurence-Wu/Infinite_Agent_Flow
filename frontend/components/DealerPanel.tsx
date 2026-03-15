@@ -202,7 +202,7 @@ export default function DealerPanel({ dealer }: { dealer: DealerEntry }) {
           <HistoryFeed history={snapshot?.history ?? []} />
 
           {/* Agent tmux CLI — lazy: only mounts when expanded */}
-          <AgentPanel />
+          <AgentPanel dealerId={dealer.dealer_id} />
         </div>
       )}
     </div>

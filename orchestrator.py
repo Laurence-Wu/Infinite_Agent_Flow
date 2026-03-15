@@ -141,6 +141,7 @@ class AgentOrchestrator:
         if server_url is None:
             self._registry = DealerRegistry(self._hook_manager, wf_path)
             self._registry.register_stack(self._stack)
+            self._registry.register_tmux(derived_id, self._tmux)
             self.app = create_app(
                 config=self._stack.config,
                 state=self._stack.state,
@@ -167,6 +168,12 @@ class AgentOrchestrator:
                 "Peer-attach mode: reporting state to %s as agent '%s'",
                 self._server_url, self._stack.agent_id,
             )
+            # Push tmux pane snapshot to the primary server every 3 s
+            threading.Thread(
+                target=self._push_pane_loop,
+                daemon=True,
+                name="pane-push",
+            ).start()
         else:
             self._start_web()
             logger.info(
@@ -224,6 +231,23 @@ class AgentOrchestrator:
     # ------------------------------------------------------------------ #
     #  Internal
     # ------------------------------------------------------------------ #
+
+    def _push_pane_loop(self) -> None:
+        """Attached-agent only: push tmux pane snapshot to primary server every 3 s."""
+        url = f"{self._server_url}/api/dealer/{self._stack.agent_id}/pane-update"
+        while True:
+            try:
+                status = self._tmux.status()
+                body = json.dumps(status).encode()
+                req = urllib.request.Request(
+                    url, data=body,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=5)
+            except Exception:
+                pass
+            time.sleep(3)
 
     def _monitor_health(self) -> None:
         """Periodically checks whether the tmux session is alive and logs if it dies."""

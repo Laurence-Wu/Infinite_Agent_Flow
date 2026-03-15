@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 
 const MAX_LINES = 200
-// Connect directly to Flask — bypasses the Next.js proxy which does not
-// support long-lived SSE streams and logs ECONNRESET on every disconnect.
+// Connect directly to Flask — bypasses the Next.js proxy which does
+// not support long-lived SSE streams and logs ECONNRESET on every disconnect.
 const FLASK_ORIGIN = `http://127.0.0.1:${process.env.NEXT_PUBLIC_FLASK_PORT ?? '5000'}`
-const SSE_URL = `${FLASK_ORIGIN}/api/agent/stream`
 
 /**
  * Opens an SSE connection directly to the Flask backend (not through the
@@ -19,8 +18,11 @@ const SSE_URL = `${FLASK_ORIGIN}/api/agent/stream`
  *
  * Auto-reconnects with exponential backoff (1 s → 2 s → 4 s … cap 30 s)
  * so transient drops during agent startup are recovered automatically.
+ *
+ * @param dealerId - Optional dealer ID for per-dealer streams.
+ *                   Falls back to the primary /api/agent/stream if omitted.
  */
-export function useAgentStream() {
+export function useAgentStream(dealerId?: string) {
   const [lines, setLines]         = useState<string[]>([])
   const [connected, setConnected] = useState(false)
   const esRef                     = useRef<EventSource | null>(null)
@@ -28,13 +30,17 @@ export function useAgentStream() {
   const retryTimer                = useRef<ReturnType<typeof setTimeout> | null>(null)
   const unmounted                 = useRef(false)
 
+  const sseUrl = dealerId
+    ? `${FLASK_ORIGIN}/api/dealer/${encodeURIComponent(dealerId)}/stream`
+    : `${FLASK_ORIGIN}/api/agent/stream`
+
   useEffect(() => {
     unmounted.current = false
 
     function connect() {
       if (unmounted.current) return
 
-      const es = new EventSource(SSE_URL)
+      const es = new EventSource(sseUrl)
       esRef.current = es
 
       es.onopen = () => {
@@ -73,7 +79,7 @@ export function useAgentStream() {
       esRef.current = null
       setConnected(false)
     }
-  }, [])
+  }, [sseUrl])
 
   return { lines, connected }
 }
