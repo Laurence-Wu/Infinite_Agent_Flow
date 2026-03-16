@@ -150,12 +150,14 @@ class ArchiveManager:
 def extract_summary(content: str) -> str:
     """Extract the ## Summary section from task content.
 
+    The instruction template itself contains a placeholder ## Summary block,
+    so we take the LAST match — which is the one the agent actually wrote.
     Falls back to the last 5 non-empty lines if no header is found.
     Exported so ``CardsPlanner`` can reuse the same logic.
     """
-    m = re.search(r"##\s*[Ss]ummary\s*\n(.*?)(?=!\[|\Z)", content, re.DOTALL)
-    if m:
-        return m.group(1).strip()
+    matches = list(re.finditer(r"##\s*[Ss]ummary\s*\n(.*?)(?=!\[|\Z)", content, re.DOTALL))
+    if matches:
+        return matches[-1].group(1).strip()
     lines = [ln.strip() for ln in content.split("\n") if ln.strip()]
     return "\n".join(lines[-5:]) if lines else "(no summary)"
 
