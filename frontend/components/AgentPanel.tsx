@@ -15,8 +15,13 @@ interface AgentPanelProps {
 export default function AgentPanel({ dealerId }: AgentPanelProps) {
   const { agentSession, isLoading } = useAgentSession(dealerId)
   const { lines: streamLines, connected: streamConnected } = useAgentStream(dealerId)
-  const { startAgent, stopAgent, pauseAgent, restartAgent } = useEngineActions()
+  const { startDealerAgent, stopDealerAgent, pauseDealerAgent, restartDealerAgent } = useEngineActions()
   const paneRef = useRef<HTMLDivElement>(null)
+
+  const startAgent  = () => startDealerAgent(dealerId ?? 'default')
+  const stopAgent   = () => stopDealerAgent(dealerId ?? 'default')
+  const pauseAgent  = () => pauseDealerAgent(dealerId ?? 'default')
+  const restartAgent = () => restartDealerAgent(dealerId ?? 'default')
 
   // Use live SSE lines when connected; fall back to polled snapshot
   const displayLines = streamConnected && streamLines.length > 0

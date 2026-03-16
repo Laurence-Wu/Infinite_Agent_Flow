@@ -64,7 +64,7 @@ export function useEngineActions() {
     return response.json()
   }, [])
 
-  // ── AI Agent (tmux) controls ──────────────────────────────────────────
+  // ── AI Agent (tmux) controls — global (primary agent) ────────────────
 
   const startAgent = useCallback(async () => {
     const response = await fetch('/api/agent/start', { method: 'POST' })
@@ -90,6 +90,32 @@ export function useEngineActions() {
     return response.json()
   }, [])
 
+  // ── Per-dealer AI Agent controls ──────────────────────────────────────
+
+  const startDealerAgent = useCallback(async (dealerId: string) => {
+    const response = await fetch(`/api/dealer/${dealerId}/session/start`, { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to start agent')
+    return response.json()
+  }, [])
+
+  const stopDealerAgent = useCallback(async (dealerId: string) => {
+    const response = await fetch(`/api/dealer/${dealerId}/session/stop`, { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to stop agent')
+    return response.json()
+  }, [])
+
+  const pauseDealerAgent = useCallback(async (dealerId: string) => {
+    const response = await fetch(`/api/dealer/${dealerId}/session/pause`, { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to pause agent')
+    return response.json()
+  }, [])
+
+  const restartDealerAgent = useCallback(async (dealerId: string) => {
+    const response = await fetch(`/api/dealer/${dealerId}/session/restart`, { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to restart agent')
+    return response.json()
+  }, [])
+
   // ── Backward-compat aliases ───────────────────────────────────────────
 
   const pauseWorkflow  = pauseDealer
@@ -109,11 +135,16 @@ export function useEngineActions() {
     restartDealer,
     startDealer,
     refreshWorkspace,
-    // Agent (tmux)
+    // Agent (tmux) — global primary
     startAgent,
     stopAgent,
     pauseAgent,
     restartAgent,
+    // Agent (tmux) — per-dealer
+    startDealerAgent,
+    stopDealerAgent,
+    pauseDealerAgent,
+    restartDealerAgent,
     // Aliases
     pauseWorkflow,
     resumeWorkflow,

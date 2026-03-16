@@ -60,7 +60,12 @@ class _StateLogHandler(logging.Handler):
             datefmt="%H:%M:%S",
         ))
 
+    # Loggers whose output should NOT appear in the per-agent live log
+    _EXCLUDED_LOGGERS = {"werkzeug", "urllib3", "httpx", "httpcore"}
+
     def emit(self, record: logging.LogRecord) -> None:
+        if record.name.split(".")[0] in self._EXCLUDED_LOGGERS:
+            return
         try:
             self._state.push_log(self.format(record), agent_id=self._agent_id)
         except Exception:
@@ -233,7 +238,9 @@ class AgentOrchestrator:
     # ------------------------------------------------------------------ #
 
     def _push_pane_loop(self) -> None:
-        """Attached-agent only: push tmux pane snapshot to primary server every 3 s."""
+        """Attached-agent only: push tmux pane snapshot to primary server every 3 s.
+        Reads back any queued agent command (start/stop/pause/restart) from the response.
+        """
         url = f"{self._server_url}/api/dealer/{self._stack.agent_id}/pane-update"
         while True:
             try:
@@ -244,7 +251,18 @@ class AgentOrchestrator:
                     headers={"Content-Type": "application/json"},
                     method="POST",
                 )
-                urllib.request.urlopen(req, timeout=5)
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read())
+                cmd = data.get("cmd")
+                if cmd:
+                    if cmd == "start":
+                        threading.Thread(target=self._tmux.start, daemon=True).start()
+                    elif cmd == "stop":
+                        self._tmux.stop()
+                    elif cmd == "pause":
+                        self._tmux.pause()
+                    elif cmd == "restart":
+                        threading.Thread(target=self._tmux.restart, daemon=True).start()
             except Exception:
                 pass
             time.sleep(3)

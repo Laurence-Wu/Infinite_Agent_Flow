@@ -78,6 +78,8 @@ class DealerRegistry:
         # or a cached status dict pushed by remote attached agents.
         self._tmux_managers: Dict[str, Any] = {}          # dealer_id → TmuxManager
         self._tmux_cache: Dict[str, Dict] = {}            # dealer_id → status snapshot
+        # Command queue for attached agents: dealer_id → list of pending commands
+        self._pending_cmds: Dict[str, List[str]] = {}
         self._start_health_monitor()
 
     # ------------------------------------------------------------------ #
@@ -250,6 +252,19 @@ class DealerRegistry:
         """Return the live TmuxManager for dealer_id, or None."""
         with self._lock:
             return self._tmux_managers.get(dealer_id)
+
+    def enqueue_agent_cmd(self, dealer_id: str, cmd: str) -> None:
+        """Queue a tmux control command (start/stop/pause/restart) for an attached agent."""
+        with self._lock:
+            self._pending_cmds.setdefault(dealer_id, []).append(cmd)
+
+    def pop_pending_cmd(self, dealer_id: str) -> Optional[str]:
+        """Pop and return the oldest pending command for dealer_id, or None."""
+        with self._lock:
+            cmds = self._pending_cmds.get(dealer_id)
+            if cmds:
+                return cmds.pop(0)
+            return None
 
     def list_dealers(self) -> List[Dict[str, Any]]:
         """Return a serialisable snapshot of all registered dealers."""
