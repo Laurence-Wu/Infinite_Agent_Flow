@@ -88,6 +88,10 @@ run_orchestrator.bat
 # User credentials config (copy from configure_user.sample.json)
 configure_user.json
 
+# Runtime logs (may contain URLs, tokens, or other ephemeral secrets)
+nohup.out
+*.log
+
 # OS
 .DS_Store
 Thumbs.db
