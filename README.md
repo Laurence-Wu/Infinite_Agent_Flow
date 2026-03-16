@@ -2,10 +2,26 @@
 
 Card-driven orchestration engine for autonomous AI agent loops.
 
-Two distinct concepts:
+> Built by [Laurence Wu](https://github.com/Laurence-Wu)
 
-- **Card Dealer** — the workflow runner that reads cards, tracks progress, and drives the AI
-- **Agent** — the AI process (Gemini, Claude, etc.) running inside a tmux session
+---
+
+![CardDealer Dashboard](docs/dashboard.png)
+
+*Live dashboard showing three concurrent agents — fast_dllm, job_war_room, and game_farmers — each running independent workflow loops with real-time cycle counts and uptime.*
+
+---
+
+## How It Works
+
+```text
+Workflow Cards  →  Card Dealer  →  AI Agent (tmux)  →  current_task.md  →  Stop Token  →  next Card
+     │                  │                │                     │                 │
+  JSON files       tracks state     Gemini/Claude        agent writes        ![next]!
+  in workflows/    advances loop    in tmux pane         its output          ![next:branch]!
+```
+
+**Card Dealer** reads a JSON card, writes its instruction to `current_task.md`, waits for the AI agent to append a stop token, then advances to the next card (or follows a branch). Loops run indefinitely unless stopped.
 
 ---
 
@@ -17,147 +33,47 @@ pip install -r requirements.txt
 cd frontend && npm install && cd ..
 ```
 
+Copy `configure_user.sample.json` → `configure_user.json` and fill in your settings.
+
 ---
-
-## Launch Command
-
-Full command with ngrok tunnel and auto-restart on crash:
-
-```bash
-while true; do
-  python orchestrator.py \
-    --workspace ./output \
-    --workflow sample_workflow \
-    --version v1 \
-    --port 5000 \
-    --ngrok-auth 'user:password' \
-    --agent-id my_agent
-  echo "Orchestrator exited — restarting in 3s..."
-  sleep 3
-done
-```
-
-> Replace `user:password` with your ngrok basic-auth credentials.
-> The `while true` loop auto-restarts the orchestrator if it crashes or exits.
-> Remove `--ngrok-auth` to run without a public tunnel (local-only dashboard).
-
-To attach a **second agent** to the same dashboard (no new server):
-
-```bash
-while true; do
-  python orchestrator.py \
-    --workspace ./output2 \
-    --workflow sample_workflow \
-    --version v1 \
-    --attach http://localhost:5000 \
-    --agent-id agent_2
-  echo "Agent 2 exited — restarting in 3s..."
-  sleep 3
-done
-```
 
 ## Quick Start
 
-Fill in [configure_user.json](configure_user.json), then:
-
 ```bash
 # Linux / macOS / WSL
-bash scripts/start.sh        # primary agent (workspace_1)
-bash scripts/start.sh 2      # secondary agent (workspace_2)
+bash scripts/start.sh        # primary agent
+bash scripts/start.sh 2      # second agent on same dashboard
 
 # Windows
 scripts\start.bat
 scripts\start.bat 2
 ```
 
-The script reads `configure_user.json` and passes `--ngrok-auth`, `--workspace`, `--workflow`, `--port`, and `--agent-id` to `orchestrator.py` automatically.
-
-Opens the dashboard at `http://localhost:3000`.
-
----
-
-## Start with AI Agent (tmux)
+Or launch directly:
 
 ```bash
-# Auto-start gemini in a tmux session when the orchestrator launches
-python orchestrator.py --workspace ./workspace --workflow sample_workflow \
+python orchestrator.py \
+  --workspace ./workspace \
+  --workflow sample_workflow \
+  --version v1 \
+  --agent-id my_agent \
   --auto-start
-
-# Use a different agent
-python orchestrator.py --workspace ./workspace --workflow sample_workflow \
-  --agent-command "claude" --auto-start
-
-# Custom tmux session name
-python orchestrator.py --workspace ./workspace --workflow sample_workflow \
-  --session-name my_session --auto-start
 ```
 
-The **Agent panel** in the dashboard shows live pane output (streamed via SSE, ~1 s latency)
-and provides **Start / Pause / Stop / Restart** controls.
-
-Attach to the running session directly:
-
-```bash
-tmux attach -t my_session        # Linux / macOS / WSL
-wsl tmux attach -t my_session    # Windows PowerShell
-```
+Dashboard opens at `http://localhost:3000`.
 
 ---
 
-## Expose over ngrok
+## Multi-Agent
 
 ```bash
-# Authenticate ngrok once
-ngrok config add-authtoken <your-token>
-
-# Start with a public ngrok tunnel (HTTP basic-auth protected)
-python orchestrator.py --workspace ./workspace --workflow sample_workflow \
-  --ngrok-auth "user:password"
-```
-
-The log prints the public URL:
-
-```text
-[INFO] ngrok public URL: https://abc123.ngrok-free.app  (basic-auth protected)
-```
-
----
-
-## Multi-Agent Setup
-
-One process owns the Flask dashboard; additional agents attach to it as peers:
-
-```bash
-# Primary — runs Flask :5000 + Next.js :3000
+# Primary — owns the Flask server and Next.js dashboard
 python orchestrator.py --workspace ./workspace --workflow sample_workflow
 
-# Satellite — attaches to the running dashboard
+# Satellite — attaches to the running dashboard as a peer
 python orchestrator.py --workspace ./workspace2 --workflow jobscrap_v2 \
-  --server http://localhost:5000 --agent-id worker_1
-
-# Remote satellite over ngrok
-python orchestrator.py --workspace ./workspace3 --workflow jobscrap_v2 \
-  --server "https://user:password@abc123.ngrok-free.app" --agent-id worker_remote
+  --server http://localhost:5000 --agent-id worker_2
 ```
-
----
-
-## Dashboard Controls
-
-**Dealers panel** (one row per running Card Dealer):
-
-- **Pause / Resume** — freeze or continue card progression
-- **Stop** — halt the dealer (keeps history)
-- **Deal** — manually advance to the next card
-- **Restart** — stop and respawn with the same config
-
-**Agent panel** (AI tmux process):
-
-- **Start** — create tmux session, launch agent, auto-accept consent, paste `AGENT_LOOP.md`
-- **Pause** — send Esc (interrupts mid-generation without killing)
-- **Stop** — send Ctrl+C × 2, kill session
-- **Restart** — send Ctrl+C × 2, relaunch agent in the same session, re-paste loop file
-- **Live output** — pane lines streamed in real time via SSE (`/api/agent/stream`)
 
 ---
 
@@ -167,8 +83,9 @@ python orchestrator.py --workspace ./workspace3 --workflow jobscrap_v2 \
 {
   "id": "card_01",
   "title": "Task title",
-  "instructions": "What the agent must do.",
+  "instruction": "What the agent must do.",
   "next_card": "card_02",
+  "loop_id": "improve",
   "branches": {
     "retry": "card_01",
     "done":  "card_02"
@@ -176,18 +93,15 @@ python orchestrator.py --workspace ./workspace3 --workflow jobscrap_v2 \
 }
 ```
 
-Cards live at `workflows/<name>/<version>/<id>.json`. Never modified by the engine.
+Cards live at `workflows/<name>/<version>/<id>.json` — never modified by the engine.
 
 ---
 
-## Completion Tokens
+## Stop Tokens
 
-The agent appends to `current_task.md`:
+The agent appends to `current_task.md` to signal completion:
 
 ```markdown
-## Summary
-One sentence summary.
-
 ![next]!              # advance to next_card
 ![next:done]!         # follow the "done" branch
 ![next:retry]!        # follow the "retry" branch
@@ -195,106 +109,76 @@ One sentence summary.
 
 ---
 
-## API Reference
+## ngrok (Remote Access)
 
-### Card Dealer
+```bash
+ngrok config add-authtoken <your-token>
 
-| Method | Path | Description |
-| ------ | ---- | ----------- |
-| GET | `/api/dealers` | List all registered dealers |
-| POST | `/api/dealers` | Start new dealer — body: `{workspace, workflow, version}` |
-| GET | `/api/dealer/<id>` | Full snapshot for one dealer |
-| GET | `/api/dealer/<id>/logs` | Log lines for one dealer |
-| GET | `/api/dealer/<id>/history` | Completion history |
-| GET | `/api/dealer/<id>/workspace-scan` | Files in this dealer's workspace |
-| POST | `/api/dealer/<id>/pause` | Pause dealer |
-| POST | `/api/dealer/<id>/resume` | Resume dealer |
-| POST | `/api/dealer/<id>/stop` | Stop dealer |
-| POST | `/api/dealer/<id>/deal` | Deal next card manually |
-| POST | `/api/dealer/<id>/restart` | Stop and respawn dealer |
+python orchestrator.py --workspace ./workspace --workflow sample_workflow \
+  --ngrok-auth "user:password"
+```
 
-### AI Agent (tmux)
-
-| Method | Path | Description |
-| ------ | ---- | ----------- |
-| GET | `/api/agent` | Session status + last 30 pane lines |
-| GET | `/api/agent/stream` | **SSE** — live pane output, one line per event |
-| POST | `/api/agent/start` | Start agent (non-blocking) |
-| POST | `/api/agent/pause` | Send Esc (pause mid-generation) |
-| POST | `/api/agent/stop` | Send Ctrl+C × 2 + kill session |
-| POST | `/api/agent/restart` | Interrupt + relaunch in same session (non-blocking) |
-
-### Other
-
-| Method | Path | Description |
-| ------ | ---- | ----------- |
-| GET | `/api/status` | Snapshot for `?dealer_id=` (or default) |
-| GET | `/api/logs` | Recent log lines |
-| GET | `/api/history` | Completed card history |
-| GET | `/api/workflows` | Available workflow names and versions |
-| GET | `/api/workspace-scan` | Files in the primary workspace |
-| GET | `/api/archive` | Recent archive entries |
+Prints: `ngrok public URL: https://abc123.ngrok-free.app  (basic-auth protected)`
 
 ---
 
 ## CLI Flags
 
-| Flag | Short | Default | Description |
-| ---- | ----- | ------- | ----------- |
-| `--workspace` | `-w` | *(required)* | Directory where `current_task.md` and archive are managed |
-| `--workflow` | `-f` | *(required)* | Workflow name (directory under `workflows/`) |
-| `--version` | `-v` | `v1` | Workflow version |
-| `--workflows-path` | | `./workflows` | Custom path to the workflows root |
-| `--port` | `-p` | `5000` | Flask port (ignored in peer-attach mode) |
-| `--server` / `--attach` | | — | URL of an existing dashboard to attach to as a peer |
-| `--agent-id` | | workspace name | Unique identifier for this agent |
-| `--ngrok-auth` | | — | `user:pass` — start a basic-auth-protected ngrok tunnel |
-| `--session-name` | | auto | tmux session name |
-| `--agent-command` | | `gemini` | AI CLI command to launch in the tmux session |
-| `--auto-start` | | false | Auto-start the tmux agent session on launch |
+| Flag | Default | Description |
+| ---- | ------- | ----------- |
+| `--workspace` | *(required)* | Directory where `current_task.md` lives |
+| `--workflow` | *(required)* | Workflow name under `workflows/` |
+| `--version` | `v1` | Workflow version |
+| `--port` | `5000` | Flask port |
+| `--server` / `--attach` | — | Attach to an existing dashboard as a peer |
+| `--agent-id` | workspace name | Unique agent identifier |
+| `--ngrok-auth` | — | `user:pass` for a public ngrok tunnel |
+| `--agent-command` | `gemini` | AI CLI command launched in tmux |
+| `--auto-start` | false | Auto-start tmux agent on launch |
 
 ---
 
-## configure_user.json
+## API
 
-Drop a `configure_user.json` file at the repo root to store your personal settings (ngrok credentials, workspace paths, agent IDs). This file is gitignored and read by helper scripts — it is **not** loaded automatically by `orchestrator.py`.
-
-```json
-{
-  "ngrok_auth":   "user:password",
-  "workflow":     "sample_workflow",
-  "version":      "v1",
-  "port":         5000,
-  "workspace_1":  "./workspace",
-  "workspace_2":  "./workspace2",
-  "agent_id_1":   "agent_1",
-  "agent_id_2":   "agent_2"
-}
-```
-
-| Field | Description |
-| ----- | ----------- |
-| `ngrok_auth` | `user:password` passed to `--ngrok-auth` |
-| `workflow` | Default workflow name |
-| `version` | Workflow version (e.g. `v1`) |
-| `port` | Flask port (default `5000`) |
-| `workspace_1` | Path to the primary agent workspace |
-| `workspace_2` | Path to the secondary agent workspace |
-| `agent_id_1` | ID for the first agent |
-| `agent_id_2` | ID for the second agent |
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | `/api/dealers` | List all dealers |
+| POST | `/api/dealers` | Start a new dealer |
+| GET | `/api/dealer/<id>` | Dealer snapshot |
+| POST | `/api/dealer/<id>/pause` | Pause |
+| POST | `/api/dealer/<id>/resume` | Resume |
+| POST | `/api/dealer/<id>/stop` | Stop |
+| POST | `/api/dealer/<id>/deal` | Manually advance card |
+| POST | `/api/dealer/<id>/restart` | Restart |
+| GET | `/api/agent/stream` | SSE — live tmux pane output |
+| POST | `/api/agent/start` | Start agent session |
+| POST | `/api/agent/stop` | Stop agent session |
+| POST | `/api/agent/restart` | Restart agent session |
 
 ---
 
-## EngineConfig Defaults
+## Image Generation Prompts
 
-`EngineConfig` is the internal Python dataclass wired through all engine components. Its defaults can be changed in `core/config.py`.
+Use these prompts to generate workflow diagrams for CardDealer:
 
-| Field | Default | Description |
-| ----- | ------- | ----------- |
-| `workspace_path` | `./workspace` | Directory where `current_task.md` and archive live |
-| `workflows_path` | `./workflows` | Root of workflow definitions |
-| `archive_dir` | `archive` | Subdirectory inside workspace for finished tasks |
-| `current_task_filename` | `current_task.md` | Name of the active task file the agent writes to |
-| `flask_host` | `127.0.0.1` | Bind host for the Flask dashboard |
-| `agent_command` | `gemini` | CLI command launched in the tmux session |
-| `agent_startup_wait` | `120` | Max seconds to wait for agent prompt before pasting loop file |
+### System Architecture
+
+> "Minimalist dark-theme technical diagram of an AI orchestration system. Left side: a stack of JSON cards labeled 'Workflow Cards'. Center: a black box labeled 'Card Dealer Engine' with glowing amber arrows flowing through it. Right side: a terminal window labeled 'AI Agent (tmux)' with streaming green text. Below the engine: a file icon labeled 'current_task.md'. A dashed loop arrow connects the agent back to the engine labeled 'stop token → next card'. Clean sans-serif labels, deep charcoal background, amber and teal accent colors."
+
+### Multi-Agent Dashboard
+
+> "Dark UI dashboard screenshot-style illustration showing three autonomous AI agent cards in a grid layout. Each card has a name badge, a status pill labeled 'Running' in amber, cycle counter, task-done counter, and uptime clock. Top navigation sidebar lists: Dashboard, Workflows, Files, History, Logs, Settings. The color palette is near-black background (#1a1a1a), amber (#f5a623) highlights, and white text. Flat design, no shadows, monospace font."
+
+### Infinite Loop Flow
+
+> "Abstract flowchart on a dark background showing a perpetual improvement cycle. Eight rectangular nodes in a clockwise ring labeled: Scaffold → Events → Hooks → Adapters → V2 Adapters → Server → Frontend → Integration. Five more nodes in an inner ring labeled: DRY Audit → Test Suite → Profiling → Hardening → Analysis. Glowing amber arrows connect outer ring sequentially; inner ring arrows loop back to DRY Audit. Title: 'CardDealer Workflow Loop'. Futuristic, circuit-board aesthetic."
+
+### Card-to-Agent Pipeline
+
+> "Infographic showing a horizontal pipeline with five stages connected by right-pointing arrows. Stage 1: a JSON card icon labeled 'Card Loaded'. Stage 2: a text file icon labeled 'Instruction Written'. Stage 3: a robot/terminal icon labeled 'Agent Executes'. Stage 4: a checkmark document labeled 'Stop Token Detected'. Stage 5: a branching arrow labeled 'Next Card / Branch'. Dark background, amber nodes, white labels, flat icon style."
+
+---
+
+## License
+
+MIT

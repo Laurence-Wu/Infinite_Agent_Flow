@@ -15,8 +15,9 @@ feature, and performs a system-wide quality pass — then immediately starts the
 
 | Role | Path |
 |------|------|
-| Main scraper / workspace | `C:\Users\MSI\Desktop\WinCoding\jobScrap\job-war-room` |
-| Board + company scraper  | `C:\Users\MSI\Desktop\WinCoding\jobScrap\job-war-room\rabiuk-job-scraper` |
+| Main scraper / workspace | `/home/xwu/agent_playground/Job-war-room` |
+| Board + company scraper  | `/home/xwu/agent_playground/Job-war-room/rabiuk-job-scraper` |
+| **Scrapling** (adaptive web scraping) | `/home/xwu/agent_playground/Job-war-room/Scrapling` |
 
 ---
 
@@ -37,7 +38,7 @@ s1_jobspy → s2_board → s3_company → s4_manual → s5_aggregate
 | Card | Fruit | Phase | What it does |
 |------|-------|-------|-------------|
 | s1_jobspy    | `fig`        | Ops         | JobSpy scrape: LinkedIn + Indeed + Glassdoor → ops_log |
-| s2_board     | `kiwi`       | Ops         | Board scrape: SimplifyJobs GitHub + Simplify.jobs + LinkedIn board |
+| s2_board     | `kiwi`       | Ops         | Board scrape: SimplifyJobs GitHub (API) + Simplify.jobs via **Scrapling** + LinkedIn board |
 | s3_company   | `lemon`      | Ops         | Company career pages (rabiuk scraper + manual additions) |
 | s4_manual    | `nectarine`  | Ops         | Manual enrichment: Handshake, WayUp, Wellfound, Discord |
 | s5_aggregate | `tangerine`  | Ops         | Merge all sources → deduplicate → filter → score → alert S/A |
@@ -61,7 +62,7 @@ s1_jobspy → s2_board → s3_company → s4_manual → s5_aggregate
 | LinkedIn, Indeed, Glassdoor | s1 (fig) | JobSpy library | Primary |
 | SimplifyJobs GitHub repo | s2 (kiwi) | GitHub raw JSON API | Secondary |
 | Simplify.jobs + LinkedIn boards | s2 (kiwi) | rabiuk board_scraper | Secondary |
-| Company career pages (25+ companies) | s3 (lemon) | rabiuk company_scraper | Tertiary |
+| Company career pages (25+ companies) | s3 (lemon) | **Scrapling** (`StealthyFetcher` / `DynamicFetcher`) + rabiuk supplement | Tertiary |
 | Handshake, WayUp, Wellfound | s4 (nectarine) | Manual + CLI research | Enrichment |
 | University portals, Discord | s4 (nectarine) | Manual | Enrichment |
 
@@ -124,14 +125,67 @@ This keeps ops cards predictable while still consolidating feature work at a ded
 
 ---
 
+## Scrapling Usage Guide
+
+Scrapling is the primary web scraping library for company career pages (s3) and live board scraping (s2).
+Repository: `/home/xwu/agent_playground/Job-war-room/Scrapling`
+Install: `pip install -e Scrapling/` from workspace root, then `python -m scrapling install` for browsers.
+
+### Fetcher Selection
+
+| Situation | Fetcher | Notes |
+|-----------|---------|-------|
+| Standard career pages (no anti-bot) | `Fetcher` | Fastest, no browser |
+| Pages with Cloudflare / Akamai | `StealthyFetcher` | Headless Playwright, evades detection |
+| Heavy JS, infinite scroll | `DynamicFetcher` | Full Playwright with interaction support |
+| Multiple pages concurrently | `AsyncFetcher` | async/await, high throughput |
+
+### Adaptive Mode (selector recovery)
+```python
+# First run: auto_save=True saves element fingerprints to local DB
+cards = page.css('.job-card', auto_save=True)
+
+# Later run after DOM change: adaptive=True re-locates elements from fingerprints
+cards = page.css('.job-card', adaptive=True)
+```
+
+### Typical Pattern
+```python
+from scrapling.fetchers import StealthyFetcher, DynamicFetcher
+
+try:
+    page = StealthyFetcher.fetch(url, headless=True, network_idle=True, timeout=30000)
+except Exception:
+    page = DynamicFetcher.fetch(url, headless=True, network_idle=True, timeout=30000)
+
+items = page.css('.job-item', auto_save=True)
+for item in items:
+    title = item.css('h3::text', auto_save=True).get('')
+```
+
+### Spider (for large-scale crawls)
+```python
+from scrapling.spiders import Spider, Response
+
+class CareerSpider(Spider):
+    name = 'careers'
+    start_urls = ['https://company.com/careers']
+
+    async def parse(self, response: Response):
+        for job in response.css('.job-card'):
+            yield {'title': job.css('h3::text').get()}
+
+CareerSpider().start()
+```
+
+---
+
 ## Command Portability Standard
 
-Cards may contain Windows-style examples, but execution should use the host shell semantics:
-
-- On Windows PowerShell: use `.venv\Scripts\activate`, `Get-Content`, `Remove-Item`.
-- On Linux/macOS bash: use `source .venv/bin/activate`, `cat`/`grep`, `rm -f`.
-
-When a command in a card is platform-specific, apply the equivalent command on the current OS and continue.
+All commands use Linux/macOS bash semantics (this system runs on Linux):
+- venv: `source .venv/bin/activate`
+- Python: `.venv/bin/python`
+- List files: `ls`, read files: `cat`/`grep`
 
 ---
 
@@ -155,7 +209,8 @@ physically written into that file to trigger the next card.
 ## Workspace Boundary
 
 All file reads/writes must stay within:
-- `C:\Users\MSI\Desktop\WinCoding\jobScrap\job-war-room`
-- `C:\Users\MSI\Desktop\WinCoding\jobScrap\job-war-room\rabiuk-job-scraper`
+- `/home/xwu/agent_playground/Job-war-room`
+- `/home/xwu/agent_playground/Job-war-room/rabiuk-job-scraper`
+- `/home/xwu/agent_playground/Job-war-room/Scrapling` (read-only — do not modify library source)
 
 Unless a card explicitly instructs pushing to GitHub.

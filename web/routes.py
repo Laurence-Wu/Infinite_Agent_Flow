@@ -133,7 +133,11 @@ class DashboardRouter:
         app.add_url_rule("/api/dealer/<dealer_id>/deal",       "api_dealer_deal",            self.api_dealer_deal,            methods=["POST"])
         app.add_url_rule("/api/dealer/<dealer_id>/restart",    "api_dealer_restart",         self.api_dealer_restart,         methods=["POST"])
         app.add_url_rule("/api/dealer/<dealer_id>/workspace-scan", "api_dealer_workspace_scan", self.api_dealer_workspace_scan)
-        app.add_url_rule("/api/dealer/<dealer_id>/session",        "api_dealer_session",        self.api_dealer_session)
+        app.add_url_rule("/api/dealer/<dealer_id>/session",         "api_dealer_session",         self.api_dealer_session)
+        app.add_url_rule("/api/dealer/<dealer_id>/session/start",  "api_dealer_session_start",   self.api_dealer_session_start,   methods=["POST"])
+        app.add_url_rule("/api/dealer/<dealer_id>/session/stop",   "api_dealer_session_stop",    self.api_dealer_session_stop,    methods=["POST"])
+        app.add_url_rule("/api/dealer/<dealer_id>/session/pause",  "api_dealer_session_pause",   self.api_dealer_session_pause,   methods=["POST"])
+        app.add_url_rule("/api/dealer/<dealer_id>/session/restart","api_dealer_session_restart", self.api_dealer_session_restart, methods=["POST"])
         app.add_url_rule("/api/dealer/<dealer_id>/stream",         "api_dealer_stream",         self.api_dealer_stream)
         app.add_url_rule("/api/dealer/<dealer_id>/pane-update",    "api_dealer_pane_update",    self.api_dealer_pane_update, methods=["POST"])
 
@@ -246,9 +250,16 @@ class DashboardRouter:
         """GET /api/dealer/<id> — full snapshot for one dealer."""
         if self.registry:
             snap = self.registry.get_dealer_snapshot(dealer_id)
-            if snap is None:
-                return jsonify({"error": f"Dealer '{dealer_id}' not found"}), 404
-            return jsonify(snap)
+            if snap is not None:
+                return jsonify(snap)
+            # Attached dealers are not in the registry — fall back to StateManager
+            if dealer_id in self._remote_agents:
+                snap = self.state.get_snapshot(dealer_id)
+                meta = self._remote_agents[dealer_id]
+                snap.setdefault("workspace", meta.get("workspace", ""))
+                snap.setdefault("is_paused", False)
+                return jsonify(snap)
+            return jsonify({"error": f"Dealer '{dealer_id}' not found"}), 404
         snap = self.state.get_snapshot(dealer_id)
         return jsonify(snap)
 
@@ -581,13 +592,58 @@ class DashboardRouter:
         return Response(generate(), mimetype="text/event-stream",
                         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+    def _dealer_session_action(self, dealer_id: str, action: str):
+        """
+        Execute a tmux action (start/stop/pause/restart) for a dealer.
+
+        - If the dealer has a live TmuxManager (primary agent): execute directly.
+        - Otherwise: enqueue the command for the attached agent's push loop to pick up.
+        """
+        if self.registry is None:
+            return jsonify({"ok": False, "error": "no registry"}), 503
+        mgr = self.registry.get_tmux_manager(dealer_id)
+        if mgr is not None:
+            try:
+                if action == "start":
+                    threading.Thread(target=mgr.start, daemon=True).start()
+                elif action == "stop":
+                    mgr.stop()
+                elif action == "pause":
+                    mgr.pause()
+                elif action == "restart":
+                    threading.Thread(target=mgr.restart, daemon=True).start()
+                return jsonify({"ok": True, "dealer_id": dealer_id, "action": action})
+            except Exception as exc:
+                return jsonify({"ok": False, "error": str(exc)}), 500
+        # No live manager — enqueue for attached agent
+        self.registry.enqueue_agent_cmd(dealer_id, action)
+        return jsonify({"ok": True, "dealer_id": dealer_id, "action": action, "queued": True})
+
+    def api_dealer_session_start(self, dealer_id: str):
+        """POST /api/dealer/<id>/session/start"""
+        return self._dealer_session_action(dealer_id, "start")
+
+    def api_dealer_session_stop(self, dealer_id: str):
+        """POST /api/dealer/<id>/session/stop"""
+        return self._dealer_session_action(dealer_id, "stop")
+
+    def api_dealer_session_pause(self, dealer_id: str):
+        """POST /api/dealer/<id>/session/pause"""
+        return self._dealer_session_action(dealer_id, "pause")
+
+    def api_dealer_session_restart(self, dealer_id: str):
+        """POST /api/dealer/<id>/session/restart"""
+        return self._dealer_session_action(dealer_id, "restart")
+
     def api_dealer_pane_update(self, dealer_id: str):
         """POST /api/dealer/<id>/pane-update — attached agent pushes its tmux snapshot."""
         if self.registry is None:
             return jsonify({"ok": False}), 503
         data = request.get_json(silent=True) or {}
         self.registry.update_pane_cache(dealer_id, data)
-        return jsonify({"ok": True})
+        # Return any pending command so the attached agent can execute it
+        pending = self.registry.pop_pending_cmd(dealer_id)
+        return jsonify({"ok": True, "cmd": pending})
 
     # ------------------------------------------------------------------ #
     #  HTMX partial handlers
