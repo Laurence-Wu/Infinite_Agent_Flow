@@ -224,28 +224,6 @@ python orchestrator.py \
 
 ---
 
-## Image Generation Prompts
-
-Prompts for generating architecture diagrams:
-
-### System Architecture
-
-> Minimalist dark-theme technical diagram of an AI orchestration system. Left: a stack of JSON cards labeled "Workflow Cards". Center: a box labeled "Card Dealer Engine" with glowing amber arrows. Right: a terminal labeled "AI Agent (tmux)" with streaming green text. Below: a file icon labeled "current_task.md". A dashed loop arrow returns from agent to engine labeled "stop token → next card". Charcoal background, amber and teal accents, clean sans-serif labels.
-
-### Multi-Agent Dashboard
-
-> Dark UI illustration of a monitoring dashboard with three autonomous agent cards in a grid. Each card shows: agent name, amber "Running" status pill, cycle counter, done counter, uptime clock. Left sidebar: Dashboard, Workflows, Files, History, Logs, Settings. Near-black background (#1a1a1a), amber (#f5a623) highlights, white monospace text. Flat design.
-
-### Infinite Improvement Loop
-
-> Abstract dark-background flowchart of a perpetual improvement cycle. Outer ring of 8 nodes: Scaffold → Events → Hooks → Adapters → V2 Adapters → Server → Frontend → Integration. Inner ring of 5 nodes: DRY Audit → Test Suite → Profiling → Hardening → Analysis, looping back to DRY Audit. Amber arrows, circuit-board aesthetic, title "CardDealer Workflow Loop".
-
-### Card-to-Agent Pipeline
-
-> Horizontal pipeline infographic, 5 stages with right-pointing arrows. Stage 1: JSON card icon "Card Loaded". Stage 2: text file icon "Instruction Written". Stage 3: terminal icon "Agent Executes". Stage 4: checkmark document "Stop Token Detected". Stage 5: branching arrow "Next Card / Branch". Dark background, amber nodes, white labels.
-
----
-
 ## License
 
 MIT © [Laurence Wu](https://github.com/Laurence-Wu)
