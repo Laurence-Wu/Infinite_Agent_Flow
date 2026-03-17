@@ -10,9 +10,23 @@ Built by [Laurence Wu](https://github.com/Laurence-Wu)
 
 ---
 
-![CardDealer Dashboard](docs/dashboard.png)
+![CardDealer Dashboard](docs/screenshot_dashboard.png)
 
-*Live dashboard — three concurrent agents running independent workflow loops with real-time cycle counts and uptime.*
+*Live dashboard — three concurrent agents (fast_dllm, job_war_room, game_farmers) running independent workflow loops with real-time cycle counts and uptime.*
+
+---
+
+## How It Works
+
+| Workflow Loop | Multi-Agent Network |
+| :---: | :---: |
+| ![Workflow Loop Diagram](docs/diagram_workflow_loop.jpg) | ![Multi-Agent Diagram](docs/diagram_multi_agent.jpg) |
+| *CardDealer Engine cycles through cards indefinitely* | *Multiple agents share one dashboard via SSE streaming* |
+
+| Workflows Page |
+| :---: |
+| ![Workflows Page](docs/screenshot_workflows.png) |
+| *All registered workflows listed with version and card counts* |
 
 ---
 
