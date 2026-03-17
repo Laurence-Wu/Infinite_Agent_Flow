@@ -26,8 +26,8 @@ workspace/archive/
 output/
 *.md.bak
 
-# Private workflow definitions (contain task instructions for your projects).
-# sample_workflow/ is the public example; jobscrap_v2/ is also tracked.
+# Private workflow definitions — only sample_workflow is public.
+# All other workflows are local-only and will never be committed.
 workflows/*
 !workflows/sample_workflow
 workflows/sample_workflow/*
@@ -35,32 +35,6 @@ workflows/sample_workflow/*
 workflows/sample_workflow/v1/*
 !workflows/sample_workflow/v1/*.json
 !workflows/sample_workflow/v1/guidance.md
-
-!workflows/jobscrap_v2
-workflows/jobscrap_v2/*
-!workflows/jobscrap_v2/v1
-workflows/jobscrap_v2/v1/*
-!workflows/jobscrap_v2/v1/*.json
-!workflows/jobscrap_v2/v1/guidance.md
-
-!workflows/cardDealer_evolve
-workflows/cardDealer_evolve/*
-!workflows/cardDealer_evolve/v1
-workflows/cardDealer_evolve/v1/*
-!workflows/cardDealer_evolve/v1/*.json
-
-!workflows/fastdllm_viz_api
-workflows/fastdllm_viz_api/*
-!workflows/fastdllm_viz_api/v1
-workflows/fastdllm_viz_api/v1/*
-!workflows/fastdllm_viz_api/v1/*.json
-!workflows/fastdllm_viz_api/v1/guidance.md
-
-!workflows/gamefarm_evolve
-workflows/gamefarm_evolve/*
-!workflows/gamefarm_evolve/v1
-workflows/gamefarm_evolve/v1/*
-!workflows/gamefarm_evolve/v1/*.json
 
 # IDE
 .vscode/
