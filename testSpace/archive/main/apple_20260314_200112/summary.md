@@ -1,5 +1,0 @@
-- **Files changed**: <every file created or modified>
-- **Commands run**: <every shell command executed>
-- **Tests**: <pass/fail counts, or 'n/a'>
-- **Git**: <commit hash, or 'no commit'>
-- **Notes**: <anything critical for the next agent to know>

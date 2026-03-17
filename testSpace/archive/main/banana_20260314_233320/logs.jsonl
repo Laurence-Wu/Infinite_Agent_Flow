@@ -1,8 +1,0 @@
-"23:20:47 [INFO] orchestrator: Peer-attach mode: reporting state to http://localhost:5000 as agent 'agent_2'"
-"23:20:47 [INFO] orchestrator: Starting workflow: jobscrap_v2/v1 \u2192 workspace: /home/xwu/agent_playground/Infinite_Agent_Flow/testSpace"
-"23:20:47 [INFO] engine.dealer: Dealt card apple (1/17) for workflow jobscrap_v2/v1"
-"23:20:47 [INFO] engine.planner: Workflow jobscrap_v2/v1 started with card apple (agent=agent_2)"
-"23:20:47 [INFO] engine.planner: ![next]! detected \u2014 advancing workflow (agent=agent_2)."
-"23:20:47 [INFO] engine.dealer: Dealt card banana (2/17) for workflow jobscrap_v2/v1"
-"23:20:47 [INFO] engine.planner: Advanced to card banana (2/17) (agent=agent_2)"
-"23:33:20 [INFO] engine.planner: ![next]! detected \u2014 advancing workflow (agent=agent_2)."

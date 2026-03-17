@@ -20,6 +20,7 @@ htmlcov/
 .coverage
 
 # Runtime workspace output (task files, archives — ignore contents, not the folder)
+testSpace/
 workspace/*
 !workspace/AGENT_LOOP.md
 workspace/archive/
